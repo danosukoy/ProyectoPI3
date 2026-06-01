@@ -1,0 +1,1454 @@
+import React, { useState, useEffect } from 'react';
+import logo from './assets/logo.png';
+import students from './assets/students.png';
+import api from './services/api';
+import { 
+  Home, 
+  Compass, 
+  BookOpen, 
+  Users, 
+  User, 
+  Settings, 
+  Search, 
+  Plus, 
+  MessageSquare, 
+  Bell, 
+  Lightbulb, 
+  CodeXml, 
+  BookMarked, 
+  SquareFunction, 
+  Palette,
+  LogOut,
+  Check,
+  Calendar,
+  Laptop,
+  AlertTriangle,
+  Clock,
+  DoorClosed,
+  ChevronRight,
+  BookOpenCheck,
+  MessageCircle,
+  GraduationCap,
+  TrendingUp
+} from 'lucide-react';
+
+interface UserData {
+  username: string;
+  email: string;
+  role?: string;
+}
+
+interface DashboardProps {
+  user: UserData;
+  onLogout: () => void;
+}
+
+interface Group {
+  id: string;
+  name: string;
+  courseName: string;
+  members: number;
+  description: string;
+}
+
+interface Booking {
+  id: string;
+  title: string;
+  group: string;
+  date: string;
+  time: string;
+  status: 'pending' | 'completed' | 'no-show';
+}
+
+export default function Dashboard({ user, onLogout }: DashboardProps) {
+  const [activeTab, setActiveTab] = useState<string>('inicio');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [notificationCount, setNotificationCount] = useState<number>(3);
+  
+  // Selected course for Step 4
+  const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
+  
+  // Custom states for interactiveness
+  const [showCreateGroup, setShowCreateGroup] = useState<boolean>(false);
+  const [newGroupName, setNewGroupName] = useState<string>('');
+  const [newGroupDesc, setNewGroupDesc] = useState<string>('');
+
+  const [joinedGroups, setJoinedGroups] = useState<string[]>([]);
+  const [myGroups, setMyGroups] = useState<Group[]>([
+    { id: '1', name: 'Grupo de Repaso Cálculo 1', courseName: 'Cálculo I', members: 4, description: 'Estudiamos los fines de semana límites y derivadas.' }
+  ]);
+
+  // Bookings list for Step 6
+  const [activeBookingTab, setActiveBookingTab] = useState<'prox' | 'comp' | 'canc'>('canc');
+  const [bookings, setBookings] = useState<Booking[]>([
+    { id: '1', title: 'Sala de Estudio 3 - Bloque A', group: 'Grupo: Cálculo I - Grupo 4', date: '15/may/2026', time: 'Hora: 10:00 - 12:00', status: 'no-show' }
+  ]);
+
+  // Reservation Mock State for Step 5
+  const [showReservationForm, setShowReservationForm] = useState<string | null>(null);
+  const [reservationSuccess, setReservationSuccess] = useState<boolean>(false);
+
+  // Interactive Chat Mock State
+  interface ChatMessage {
+    id: string;
+    sender: string;
+    text: string;
+    time: string;
+    isMe: boolean;
+  }
+  const [activeChatGroup, setActiveChatGroup] = useState<string | null>(null);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [newMessageText, setNewMessageText] = useState<string>('');
+
+  const handleOpenChat = (groupName: string) => {
+    setActiveChatGroup(groupName);
+    setChatMessages([
+      { id: '1', sender: 'Diego Alva', text: '¡Hola a todos! ¿Alguien tiene resuelta la pregunta 3 de la guía de Cálculo?', time: '14:32', isMe: false },
+      { id: '2', sender: 'Mateo Rojas', text: 'Sí, yo la resolví. Sale -1.5, usando la regla de la cadena para la derivada externa.', time: '14:35', isMe: false },
+      { id: '3', sender: 'Lucía Méndez', text: '¡Buenísimo Mateo! ¿Nos reunimos hoy en la tarde en la Sala 3 a repasar antes del control?', time: '14:38', isMe: false }
+    ]);
+    setNewMessageText('');
+  };
+
+  const handleSendChatMessage = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessageText.trim()) return;
+
+    const myMessage: ChatMessage = {
+      id: String(Date.now()),
+      sender: formatName(user.username),
+      text: newMessageText.trim(),
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isMe: true
+    };
+
+    setChatMessages([...chatMessages, myMessage]);
+    setNewMessageText('');
+  };
+
+  // Fetch teams and bookings from Spring Boot backend on mount
+  useEffect(() => {
+    const loadBackendData = async () => {
+      try {
+        // 1. Fetch groups/teams from Spring Boot backend
+        const teamsResponse = await api.get('/teams');
+        if (teamsResponse.data && Array.isArray(teamsResponse.data)) {
+          const loadedGroups = teamsResponse.data.map((team: any) => ({
+            id: String(team.id),
+            name: team.name,
+            courseName: team.university || 'General',
+            members: 4 + (team.id % 5), // Mock member count logically based on ID
+            description: `Grupo colaborativo registrado en el backend de UTEC Conexión para ${team.university || 'General'}.`
+          }));
+          
+          if (loadedGroups.length > 0) {
+            setMyGroups(loadedGroups);
+          }
+        }
+      } catch (err) {
+        console.warn('Backend server is not running or failed to fetch teams. Using local mock data instead.', err);
+      }
+
+      try {
+        // 2. Fetch matches/bookings from Spring Boot backend
+        const matchesResponse = await api.get('/matches');
+        if (matchesResponse.data && Array.isArray(matchesResponse.data)) {
+          const loadedBookings: Booking[] = matchesResponse.data.map((match: any) => {
+            const dateObj = new Date(match.matchDateTime || Date.now());
+            return {
+              id: String(match.id),
+              title: match.title || 'Reserva de Espacio',
+              group: match.description || 'Grupo de estudio privado',
+              date: dateObj.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }),
+              time: 'Hora: ' + dateObj.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+              status: match.status === 'SCHEDULED' ? 'pending' : (match.status === 'COMPLETED' ? 'completed' : 'no-show')
+            };
+          });
+          
+          if (loadedBookings.length > 0) {
+            setBookings(loadedBookings);
+          }
+        }
+      } catch (err) {
+        console.warn('Backend server is not running or failed to fetch bookings. Using local mock data instead.', err);
+      }
+    };
+
+    loadBackendData();
+  }, []);
+
+  // Dynamic values
+  const getInitials = (name: string) => {
+    if (!name) return 'U';
+    const parts = name.split(/[\s._\-]/).filter(Boolean);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
+  };
+
+  const formatName = (name: string) => {
+    if (!name) return 'Usuario';
+    return name
+      .replace(/[\s._\-]+/g, ' ')
+      .split(' ')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const handleJoinGroup = (groupName: string) => {
+    if (joinedGroups.includes(groupName)) {
+      setJoinedGroups(joinedGroups.filter(g => g !== groupName));
+    } else {
+      setJoinedGroups([...joinedGroups, groupName]);
+      // Add to my groups list too
+      const newGroup: Group = {
+        id: String(Date.now()),
+        name: groupName,
+        courseName: selectedCourse || 'General',
+        members: 6,
+        description: 'Grupo colaborativo de UTEC Conexión.'
+      };
+      setMyGroups([...myGroups, newGroup]);
+    }
+  };
+
+  const handleCreateGroupSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName.trim()) return;
+
+    const newGroupMock: Group = {
+      id: String(Date.now()),
+      name: newGroupName.trim(),
+      courseName: selectedCourse || 'General',
+      members: 1,
+      description: newGroupDesc.trim() || 'Grupo de estudio recién creado para colaborar.'
+    };
+
+    try {
+      // POST to Spring Boot backend to save the new team
+      const response = await api.post('/teams', {
+        name: newGroupName.trim(),
+        university: selectedCourse || 'General' // Map the course to the university property in Team model
+      });
+
+      if (response.data && response.data.id) {
+        const savedGroup: Group = {
+          id: String(response.data.id),
+          name: response.data.name,
+          courseName: response.data.university || 'General',
+          members: 1,
+          description: newGroupDesc.trim() || 'Grupo de estudio registrado y guardado en el servidor.'
+        };
+        setMyGroups([...myGroups, savedGroup]);
+      } else {
+        setMyGroups([...myGroups, newGroupMock]);
+      }
+    } catch (err) {
+      console.warn('Backend server not running. Adding group to local state only.', err);
+      setMyGroups([...myGroups, newGroupMock]);
+    }
+
+    setNewGroupName('');
+    setNewGroupDesc('');
+    setShowCreateGroup(false);
+    setSelectedCourse(null);
+    setActiveTab('grupos'); // Go to groups tab
+  };
+
+  const handleReserveSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setReservationSuccess(true);
+
+    const bookingMock: Booking = {
+      id: String(Date.now()),
+      title: showReservationForm || 'Reserva de Espacio',
+      group: 'Grupo de estudio privado',
+      date: 'Próxima semana',
+      time: '14:00 - 16:00',
+      status: 'pending'
+    };
+
+    try {
+      // Create a reservation (match) in Spring Boot backend
+      const response = await api.post('/matches', {
+        title: showReservationForm || 'Reserva de Cubículo',
+        description: 'Estudio cooperativo por UTEC Conexión',
+        matchDateTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days in future
+        locationId: 1, // Estadio / Coliseo / Cubículo sembrado
+        disciplineId: 1, // Fútbol / Disciplina sembrada
+        homeTeamId: 1, // Leones / Team sembrado
+        awayTeamId: 2, // Coyotes / Team sembrado
+        organizer: formatName(user.username)
+      });
+
+      if (response.data && response.data.id) {
+        const dateObj = new Date(response.data.matchDateTime || Date.now());
+        const savedBooking: Booking = {
+          id: String(response.data.id),
+          title: response.data.title || showReservationForm || 'Reserva de Cubículo',
+          group: response.data.description || 'Grupo de estudio privado',
+          date: dateObj.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }),
+          time: 'Hora: ' + dateObj.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
+          status: 'pending'
+        };
+        setBookings([savedBooking, ...bookings]);
+      } else {
+        setBookings([bookingMock, ...bookings]);
+      }
+    } catch (err) {
+      console.warn('Backend server not running. Reserving in local state only.', err);
+      setBookings([bookingMock, ...bookings]);
+    }
+
+    setTimeout(() => {
+      setReservationSuccess(false);
+      setShowReservationForm(null);
+      setActiveTab('historial'); // Switch to booking history
+      setActiveBookingTab('prox');
+    }, 1500);
+  };
+
+  // Cursos Generales data from Step 3
+  const generalCourses = [
+    { name: 'Cálculo I', area: 'Área de Ciencias', color: '#FE7B02', icon: SquareFunction, bg: 'rgba(254, 123, 2, 0.15)' },
+    { name: 'Física General', area: 'Área de Ciencias', color: '#a21caf', icon: BookMarked, bg: 'rgba(162, 28, 175, 0.15)' },
+    { name: 'Comunicación Oral y Escrita', area: 'Área de Humanidades', color: '#0f766e', icon: MessageSquare, bg: 'rgba(15, 118, 110, 0.15)' },
+    { name: 'Programming Fundamentals', area: 'Área de Ingeniería', color: '#1d4ed8', icon: CodeXml, bg: 'rgba(29, 78, 216, 0.15)' }
+  ];
+
+  // Cursos Filtro data from Step 3
+  const filterCourses = [
+    { name: 'Educación y Sociedad', area: 'Área Pedagógica', color: '#15803d', icon: Users, bg: 'rgba(21, 128, 61, 0.15)' },
+    { name: 'Psicología del Aprendizaje', area: 'Área de Psicología', color: '#15803d', icon: Lightbulb, bg: 'rgba(21, 128, 61, 0.15)' },
+    { name: 'Teorías Educativas', area: 'Área Pedagógica', color: '#15803d', icon: BookOpenCheck, bg: 'rgba(21, 128, 61, 0.15)' },
+    { name: 'Diseño Curricular', area: 'Área Curricular', color: '#15803d', icon: Palette, bg: 'rgba(21, 128, 61, 0.15)' }
+  ];
+
+  // Dynamic filter based on search input
+  const filteredGeneralCourses = generalCourses.filter(course =>
+    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.area.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const filteredFilterCourses = filterCourses.filter(course =>
+    course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    course.area.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="min-h-screen flex text-foreground font-display bg-[#f6f9fb]">
+      
+      {/* Sidebar - Sleek White Design matching Mockup */}
+      <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-border/60 flex-col sticky top-0 h-screen">
+        
+        {/* Logo Section */}
+        <div className="px-6 py-5 border-b border-border/40">
+          <img src={logo} alt="UTEC Conexión" className="h-12 w-auto object-contain select-none" draggable="false" />
+        </div>
+
+        {/* Navigation Options matching exact prototype steps */}
+        <nav className="flex-1 p-4 space-y-1">
+          <button 
+            onClick={() => { setActiveTab('inicio'); setSelectedCourse(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === 'inicio' 
+                ? 'bg-[color:var(--brand-green)]/10 text-[color:var(--brand-green)]' 
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <Home className="h-5 w-5" />
+            <span>Inicio</span>
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('grupos'); setSelectedCourse(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === 'grupos' 
+                ? 'bg-[color:var(--brand-green)]/10 text-[color:var(--brand-green)]' 
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <Users className="h-5 w-5" />
+            <span>Mis grupos</span>
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('herramientas'); setSelectedCourse(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === 'herramientas' 
+                ? 'bg-[color:var(--brand-green)]/10 text-[color:var(--brand-green)]' 
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <Laptop className="h-5 w-5" />
+            <span>Herramientas</span>
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('historial'); setSelectedCourse(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === 'historial' 
+                ? 'bg-[color:var(--brand-green)]/10 text-[color:var(--brand-green)]' 
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <Calendar className="h-5 w-5" />
+            <span>Reservas</span>
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('perfil'); setSelectedCourse(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === 'perfil' 
+                ? 'bg-[color:var(--brand-green)]/10 text-[color:var(--brand-green)]' 
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <User className="h-5 w-5" />
+            <span>Perfil</span>
+          </button>
+          
+          <button 
+            onClick={() => { setActiveTab('configuracion'); setSelectedCourse(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === 'configuracion' 
+                ? 'bg-[color:var(--brand-green)]/10 text-[color:var(--brand-green)]' 
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <Settings className="h-5 w-5" />
+            <span>Configuración</span>
+          </button>
+        </nav>
+
+        {/* User Card & Logout bottom section matching Mockup layout */}
+        <div className="p-4 border-t border-border/40">
+          <button 
+            onClick={onLogout}
+            title="Haga clic para cerrar sesión"
+            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 hover:text-red-600 transition-colors text-left"
+          >
+            <div className="h-10 w-10 rounded-full bg-gradient-brand flex items-center justify-center text-white font-semibold shrink-0">
+              {getInitials(user.username)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-foreground truncate">{formatName(user.username)}</p>
+              <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+              <span className="inline-block mt-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-[color:var(--brand-green)]/15 text-[color:var(--brand-green)]">
+                Estudiante
+              </span>
+            </div>
+            <LogOut className="h-4 w-4 text-muted-foreground shrink-0" />
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Area */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        
+        {/* Header matching mockup exact icons and borders */}
+        <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-border/40 px-4 sm:px-8 py-4 flex items-center gap-4">
+          
+          <a href="#" className="lg:hidden shrink-0">
+            <img src={logo} alt="UTEC Conexión" className="h-9 w-auto" />
+          </a>
+
+          {/* Header Search bar */}
+          <div className="flex-1 relative max-w-2xl">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar cursos, grupos, usuarios o temas..." 
+              className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-muted/60 border border-transparent focus:bg-white focus:border-border focus:outline-none text-sm" 
+              type="text" 
+            />
+          </div>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button 
+              onClick={() => { setSelectedCourse('Programming Fundamentals'); }} 
+              className="h-10 w-10 rounded-xl border-2 border-[color:var(--brand-green)] text-[color:var(--brand-green)] flex items-center justify-center hover:bg-[color:var(--brand-green)]/10 transition-colors"
+              title="Crear un grupo de estudio"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
+            
+            <button 
+              onClick={() => { setActiveTab('grupos'); setSelectedCourse(null); }}
+              className="h-10 w-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"
+              title="Mis grupos"
+            >
+              <Users className="h-5 w-5" />
+            </button>
+            
+            <button 
+              onClick={() => handleOpenChat('Grupo de Cálculo I')}
+              className="h-10 w-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"
+              title="Chat grupal activo"
+            >
+              <MessageSquare className="h-5 w-5" />
+            </button>
+            
+            <button 
+              onClick={() => setNotificationCount(0)}
+              className="relative h-10 w-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"
+              title="Notificaciones"
+            >
+              <Bell className="h-5 w-5" />
+              {notificationCount > 0 && (
+                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-[color:var(--brand-purple)] text-white text-[10px] font-bold flex items-center justify-center">
+                  {notificationCount}
+                </span>
+              )}
+            </button>
+            
+            <div className="h-10 w-10 rounded-full bg-gradient-brand flex items-center justify-center text-white font-semibold text-sm select-none">
+              {getInitials(user.username)}
+            </div>
+          </div>
+        </header>
+
+        {/* Content Body */}
+        <main className="p-4 sm:p-8 space-y-8 flex-grow">
+
+          {/* VIEW: INICIO */}
+          {activeTab === 'inicio' && !selectedCourse && (
+            <>
+              {/* If search query is NOT empty, display search results */}
+              {searchQuery ? (
+                <div className="space-y-6">
+                  <div>
+                    <h2 className="text-xl font-bold">Resultados de búsqueda para "{searchQuery}"</h2>
+                    <p className="text-xs text-muted-foreground mt-0.5">Filtrando cursos y especialidades en tiempo real.</p>
+                  </div>
+                  {filteredGeneralCourses.length === 0 && filteredFilterCourses.length === 0 ? (
+                    <div className="text-center py-16 rounded-3xl border border-dashed border-border bg-white shadow-soft space-y-4">
+                      <Search className="h-10 w-10 text-muted-foreground mx-auto" />
+                      <div>
+                        <h3 className="font-bold text-sm text-foreground">No se encontraron resultados</h3>
+                        <p className="text-xs text-muted-foreground mt-1">No hay cursos o áreas que coincidan con "{searchQuery}"</p>
+                      </div>
+                      <button 
+                        onClick={() => setSearchQuery('')}
+                        className="px-4 py-2 rounded-xl border border-border bg-white hover:bg-muted text-xs font-semibold text-foreground transition cursor-pointer"
+                      >
+                        Limpiar búsqueda
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="space-y-8">
+                      {filteredGeneralCourses.length > 0 && (
+                        <section className="space-y-4">
+                          <h3 className="text-lg font-bold text-foreground">Cursos Generales</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {filteredGeneralCourses.map((course) => {
+                              const IconComponent = course.icon;
+                              return (
+                                <div 
+                                  key={course.name}
+                                  onClick={() => setSelectedCourse(course.name)}
+                                  className="rounded-2xl border bg-white p-5 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-soft transition-all duration-200 cursor-pointer flex flex-col items-start border-border/60"
+                                >
+                                  <div className="h-12 w-12 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: course.bg }}>
+                                    <IconComponent className="h-6 w-6" style={{ color: course.color }} />
+                                  </div>
+                                  <h3 className="font-bold text-sm text-foreground leading-tight mb-1">{course.name}</h3>
+                                  <span className="text-[10px] font-medium text-muted-foreground">{course.area}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      )}
+                      
+                      {filteredFilterCourses.length > 0 && (
+                        <section className="space-y-4">
+                          <h3 className="text-lg font-bold text-foreground">Cursos Filtro de tu Carrera</h3>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {filteredFilterCourses.map((course) => {
+                              const IconComponent = course.icon;
+                              return (
+                                <div 
+                                  key={course.name}
+                                  onClick={() => setSelectedCourse(course.name)}
+                                  className="rounded-2xl border bg-white p-5 hover:border-gray-400 hover:-translate-y-0.5 hover:shadow-soft transition-all duration-200 cursor-pointer flex flex-col items-start border-border/60"
+                                >
+                                  <div className="h-12 w-12 rounded-xl flex items-center justify-center mb-4" style={{ backgroundColor: course.bg }}>
+                                    <IconComponent className="h-6 w-6" style={{ color: course.color }} />
+                                  </div>
+                                  <h3 className="font-bold text-sm text-foreground leading-tight mb-1">{course.name}</h3>
+                                  <span className="text-[10px] font-medium text-muted-foreground">{course.area}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                /* EXACT Mockup grid: 2-column layout */
+                <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+                  
+                  {/* Left Column: Hero, Quick actions, Recommended, CTA */}
+                  <div className="space-y-6">
+                    
+                    {/* Hero Card matching mockup structure */}
+                    <section className="relative overflow-hidden rounded-3xl bg-white shadow-card border border-border/40 p-6 sm:p-10">
+                      <div className="grid md:grid-cols-2 gap-6 items-center">
+                        <div>
+                          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tight leading-[1.05]">
+                            <span className="text-[color:var(--brand-green)]">Conecta.</span><br />
+                            <span className="text-[color:var(--brand-blue)]">Comparte.</span><br />
+                            <span className="text-[color:var(--brand-blue)]">Aprende. </span>
+                            <span className="text-[color:var(--brand-purple)]">Crece.</span>
+                          </h1>
+                          <p className="mt-5 text-muted-foreground max-w-md">
+                            UTEC Conexión es tu espacio para colaborar, aprender juntos y formar grupos de estudio efectivos.
+                          </p>
+                          <div className="mt-6 flex flex-wrap gap-3">
+                            <button 
+                              onClick={() => setActiveTab('grupos')}
+                              className="px-6 py-3 rounded-xl bg-[color:var(--brand-green)] text-white font-semibold shadow-soft hover:opacity-90 transition cursor-pointer"
+                            >
+                              Explorar grupos
+                            </button>
+                            <button 
+                              onClick={() => { setSelectedCourse('Programming Fundamentals'); }}
+                              className="px-6 py-3 rounded-xl bg-white border border-border font-semibold text-foreground hover:bg-muted transition inline-flex items-center gap-2 cursor-pointer"
+                            >
+                              Crear grupo 
+                              <Plus className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="relative">
+                          <div className="absolute inset-0 bg-gradient-brand opacity-20 blur-3xl rounded-full"></div>
+                          <img 
+                            alt="Estudiantes UTEC Conexión" 
+                            className="relative w-full max-w-md mx-auto drop-shadow-2xl select-none" 
+                            src={students} 
+                            draggable="false"
+                          />
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Quick actions grid of 4 cards */}
+                    <section className="rounded-3xl bg-white shadow-card border border-border/40 p-6 grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                      <div className="flex gap-3">
+                        <div className="shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'color-mix(in oklab, var(--brand-green) 15%, white)' }}>
+                          <Users className="h-5 w-5" style={{ color: 'var(--brand-green)' }} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Crea tu grupo</h3>
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Forma grupos con compañeros que comparten tus intereses.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <div className="shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'color-mix(in oklab, var(--brand-blue) 15%, white)' }}>
+                          <MessageCircle className="h-5 w-5" style={{ color: 'var(--brand-blue)' }} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Comparte ideas</h3>
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Intercambia recursos, apuntes y materiales de estudio.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <div className="shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'color-mix(in oklab, var(--brand-purple) 15%, white)' }}>
+                          <GraduationCap className="h-5 w-5" style={{ color: 'var(--brand-purple)' }} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Aprende juntos</h3>
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Colabora en proyectos y resuelve dudas en equipo.</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex gap-3">
+                        <div className="shrink-0 h-12 w-12 rounded-2xl flex items-center justify-center" style={{ backgroundColor: 'color-mix(in oklab, var(--brand-green) 15%, white)' }}>
+                          <TrendingUp className="h-5 w-5" style={{ color: 'var(--brand-green)' }} />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-foreground text-sm">Crece contigo</h3>
+                          <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Mide tu progreso y supérate cada día.</p>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* Recommended Groups grid */}
+                    <section className="rounded-3xl bg-white shadow-card border border-border/40 p-6">
+                      <div className="flex items-center justify-between mb-5">
+                        <h2 className="text-xl font-bold">Grupos recomendados para ti</h2>
+                        <button onClick={() => setActiveTab('grupos')} className="text-sm font-medium text-[color:var(--brand-blue)] hover:underline cursor-pointer">Ver todos</button>
+                      </div>
+                      
+                      <div className="grid md:grid-cols-3 gap-4">
+                        
+                        {/* Group 1: Matemáticas Aplicadas */}
+                        <div className="relative rounded-2xl border border-border/60 p-5 hover:shadow-soft transition bg-white">
+                          <span className="absolute -top-2 left-4 text-[10px] font-bold px-2 py-1 rounded-full bg-[color:var(--brand-green)] text-white select-none">✦ Nuevo</span>
+                          
+                          <div className="h-12 w-12 rounded-full flex items-center justify-center bg-[color:var(--brand-green)]">
+                            <Lightbulb className="h-6 w-6 text-white" />
+                          </div>
+                          
+                          <h3 className="mt-4 font-bold text-foreground">Matemáticas Aplicadas</h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {joinedGroups.includes('Grupo de Matemáticas Aplicadas') ? '6 miembros' : '5 miembros'}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-3 leading-relaxed">Grupo para reforzar temas de matemáticas y preparar exámenes.</p>
+                          
+                          <button 
+                            onClick={() => handleJoinGroup('Grupo de Matemáticas Aplicadas')}
+                            className={`mt-5 w-full py-2 rounded-lg border-2 font-semibold text-sm transition-all cursor-pointer ${
+                              joinedGroups.includes('Grupo de Matemáticas Aplicadas')
+                                ? 'bg-[color:var(--brand-green)] border-[color:var(--brand-green)] text-white'
+                                : 'border-[color:var(--brand-green)] text-[color:var(--brand-green)] hover:bg-[color:var(--brand-green)] hover:text-white'
+                            }`}
+                          >
+                            {joinedGroups.includes('Grupo de Matemáticas Aplicadas') ? '¡Te has unido!' : 'Unirme'}
+                          </button>
+                        </div>
+
+                        {/* Group 2: Programación Web */}
+                        <div className="relative rounded-2xl border border-border/60 p-5 hover:shadow-soft transition bg-white">
+                          <div className="h-12 w-12 rounded-full flex items-center justify-center bg-[color:var(--brand-blue)]">
+                            <CodeXml className="h-6 w-6 text-white" />
+                          </div>
+                          
+                          <h3 className="mt-4 font-bold text-foreground">Programación Web</h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {joinedGroups.includes('Grupo de Programación Web') ? '9 miembros' : '8 miembros'}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-3 leading-relaxed">Aprendemos juntos desarrollo web desde cero. ¡Todos los niveles!</p>
+                          
+                          <button 
+                            onClick={() => handleJoinGroup('Grupo de Programación Web')}
+                            className={`mt-5 w-full py-2 rounded-lg border-2 font-semibold text-sm transition-all cursor-pointer ${
+                              joinedGroups.includes('Grupo de Programación Web')
+                                ? 'bg-[color:var(--brand-blue)] border-[color:var(--brand-blue)] text-white'
+                                : 'border-[color:var(--brand-blue)] text-[color:var(--brand-blue)] hover:bg-[color:var(--brand-blue)] hover:text-white'
+                            }`}
+                          >
+                            {joinedGroups.includes('Grupo de Programación Web') ? '¡Te has unido!' : 'Unirme'}
+                          </button>
+                        </div>
+
+                        {/* Group 3: Física General */}
+                        <div className="relative rounded-2xl border border-border/60 p-5 hover:shadow-soft transition bg-white">
+                          <div className="h-12 w-12 rounded-full flex items-center justify-center bg-[color:var(--brand-purple)]">
+                            <BookMarked className="h-6 w-6 text-white" />
+                          </div>
+                          
+                          <h3 className="mt-4 font-bold text-foreground">Física General</h3>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {joinedGroups.includes('Grupo de Física General') ? '7 miembros' : '6 miembros'}
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-3 leading-relaxed">Resolución de ejercicios y preparación de prácticas de laboratorio.</p>
+                          
+                          <button 
+                            onClick={() => handleJoinGroup('Grupo de Física General')}
+                            className={`mt-5 w-full py-2 rounded-lg border-2 font-semibold text-sm transition-all cursor-pointer ${
+                              joinedGroups.includes('Grupo de Física General')
+                                ? 'bg-[color:var(--brand-purple)] border-[color:var(--brand-purple)] text-white'
+                                : 'border-[color:var(--brand-purple)] text-[color:var(--brand-purple)] hover:bg-[color:var(--brand-purple)] hover:text-white'
+                            }`}
+                          >
+                            {joinedGroups.includes('Grupo de Física General') ? '¡Te has unido!' : 'Unirme'}
+                          </button>
+                        </div>
+
+                      </div>
+                    </section>
+
+                    {/* CTA Bottom Banner */}
+                    <section className="rounded-3xl bg-gradient-to-r from-[color:var(--brand-blue)]/10 via-[color:var(--brand-purple)]/10 to-[color:var(--brand-green)]/10 border border-border/40 p-6 sm:p-8 flex flex-wrap items-center gap-6 justify-between">
+                      <div>
+                        <h3 className="text-xl font-bold text-foreground">¿No encuentras lo que buscas?</h3>
+                        <p className="text-sm text-muted-foreground mt-1">Crea tu propio grupo y reúne a los compañeros ideales para estudiar juntos.</p>
+                        
+                        <button 
+                          onClick={() => { setSelectedCourse('Programming Fundamentals'); }}
+                          className="mt-4 px-5 py-2.5 rounded-xl bg-white border border-border font-semibold text-sm inline-flex items-center gap-2 hover:shadow-soft hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer text-foreground"
+                        >
+                          Crear grupo 
+                          <Plus className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </section>
+
+                  </div>
+
+                  {/* Right Column: "Mis cursos" sidebar list matching mockup exactly */}
+                  <aside className="space-y-6">
+                    <section className="rounded-3xl bg-white shadow-card border border-border/40 p-6 xl:sticky xl:top-24">
+                      
+                      <div className="flex items-center justify-between mb-5">
+                        <h2 className="font-bold text-foreground">Mis cursos</h2>
+                        <button 
+                          onClick={() => { setSelectedCourse('Programming Fundamentals'); }} 
+                          className="text-sm font-medium text-[color:var(--brand-blue)] hover:underline cursor-pointer"
+                        >
+                          Ver todos
+                        </button>
+                      </div>
+
+                      <div className="space-y-3">
+                        
+                        {/* Course 1 */}
+                        <div 
+                          onClick={() => setSelectedCourse('Programming Fundamentals')}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-border/60 hover:shadow-soft hover:border-gray-300 transition cursor-pointer bg-white"
+                        >
+                          <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'color-mix(in oklab, var(--brand-green) 18%, white)' }}>
+                            <CodeXml className="h-5 w-5" style={{ color: 'var(--brand-green)' }} />
+                          </div>
+                          <span className="text-sm font-medium text-foreground">Introducción a la Programación</span>
+                        </div>
+
+                        {/* Course 2 */}
+                        <div 
+                          onClick={() => setSelectedCourse('Cálculo I')}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-border/60 hover:shadow-soft hover:border-gray-300 transition cursor-pointer bg-white"
+                        >
+                          <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'color-mix(in oklab, var(--brand-blue) 18%, white)' }}>
+                            <SquareFunction className="h-5 w-5" style={{ color: 'var(--brand-blue)' }} />
+                          </div>
+                          <span className="text-sm font-medium text-foreground">Cálculo Diferencial</span>
+                        </div>
+
+                        {/* Course 3 */}
+                        <div 
+                          onClick={() => setSelectedCourse('Teorías Educativas')}
+                          className="flex items-center gap-3 p-3 rounded-xl border border-border/60 hover:shadow-soft hover:border-gray-300 transition cursor-pointer bg-white"
+                        >
+                          <div className="h-10 w-10 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: 'color-mix(in oklab, var(--brand-purple) 18%, white)' }}>
+                            <Palette className="h-5 w-5" style={{ color: 'var(--brand-purple)' }} />
+                          </div>
+                          <span className="text-sm font-medium text-foreground">Diseño de Interfaces</span>
+                        </div>
+
+                      </div>
+                    </section>
+                  </aside>
+
+                </div>
+              )}
+            </>
+          )}
+
+          {/* VIEW: STEP 4 (CREAR O UNIRSE A UN GRUPO DE CHAT) */}
+          {selectedCourse && (
+            <div className="max-w-3xl mx-auto space-y-6">
+              
+              {/* Back Button */}
+              <button 
+                onClick={() => setSelectedCourse(null)}
+                className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer mb-2"
+              >
+                <ChevronRight className="h-4 w-4 rotate-180" />
+                <span>Volver a Cursos</span>
+              </button>
+
+              <div className="rounded-3xl border bg-white p-8 sm:p-10 shadow-card border-border/60">
+                <div className="text-center max-w-md mx-auto mb-10">
+                  <div className="h-14 w-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-[color:var(--brand-purple)]/10 text-[color:var(--brand-purple)]">
+                    <BookMarked className="h-7 w-7" />
+                  </div>
+                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{selectedCourse}</h1>
+                  <p className="text-xs text-muted-foreground mt-2">Selecciona una opción para continuar en UTEC Conexión</p>
+                </div>
+
+                <div className="grid sm:grid-cols-2 gap-6 items-stretch">
+                  
+                  {/* Option A: Crear Grupo */}
+                  <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
+                    <div>
+                      <div className="h-10 w-10 rounded-xl flex items-center justify-center mb-4 bg-green-500/10 text-green-600">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-base text-foreground">Crear grupo</h3>
+                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                        Crea un nuevo grupo de estudio privado o público y comienza a colaborar con tus compañeros en este curso.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setShowCreateGroup(true)}
+                      className="mt-6 w-full py-3 rounded-xl border font-bold text-xs hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                      style={{ borderColor: 'rgba(254, 123, 2, 0.4)', backgroundColor: 'transparent', color: '#FE7B02' }}
+                    >
+                      <Plus className="h-4.5 w-4.5" />
+                      <span>Crear grupo</span>
+                    </button>
+                  </div>
+
+                  {/* Option B: Unirse a Grupo */}
+                  <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
+                    <div>
+                      <div className="h-10 w-10 rounded-xl flex items-center justify-center mb-4 bg-blue-500/10 text-blue-600">
+                        <Compass className="h-5 w-5" />
+                      </div>
+                      <h3 className="font-bold text-base text-foreground">Unirse a un grupo</h3>
+                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                        Únete a un grupo existente del curso {selectedCourse} y empieza a chatear y programar sesiones hoy mismo.
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => handleJoinGroup(`Grupo de ${selectedCourse}`)}
+                      className={`mt-6 w-full py-3 rounded-xl font-bold text-xs hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                        joinedGroups.includes(`Grupo de ${selectedCourse}`)
+                          ? 'bg-green-600 text-white border-transparent'
+                          : 'bg-white text-foreground border-border hover:bg-muted'
+                      }`}
+                    >
+                      {joinedGroups.includes(`Grupo de ${selectedCourse}`) ? (
+                        <>
+                          <Check className="h-4.5 w-4.5" />
+                          <span>¡Te has unido!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Search className="h-4.5 w-4.5" />
+                          <span>Buscar grupos</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: HERRAMIENTAS (STEP 5) */}
+          {activeTab === 'herramientas' && (
+            <div className="space-y-6">
+              
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Herramientas Institucionales</h1>
+                <p className="text-xs text-muted-foreground mt-1">Accede a los servicios y herramientas que UTEC pone a tu disposición.</p>
+              </div>
+
+              {/* Step 5 Reservation Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                
+                {/* Tool 1 */}
+                <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
+                  <div>
+                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: 'rgba(254, 123, 2, 0.15)' }}>
+                      <Calendar className="h-6 w-6" style={{ color: '#FE7B02' }} />
+                    </div>
+                    <h3 className="font-bold text-sm text-foreground">Reserva de Aulas</h3>
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                      Reserva aulas asignadas para estudio en grupo o repasos académicos.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowReservationForm('Reserva de Aulas')}
+                    className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
+                  >
+                    Reservar aula
+                  </button>
+                </div>
+
+                {/* Tool 2 */}
+                <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
+                  <div>
+                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: 'rgba(254, 123, 2, 0.15)' }}>
+                      <DoorClosed className="h-6 w-6" style={{ color: '#FE7B02' }} />
+                    </div>
+                    <h3 className="font-bold text-sm text-foreground">Reserva de Salas de Estudio</h3>
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                      Reserva salas completamente equipadas con pizarras y pantallas para tus reuniones.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowReservationForm('Reserva de Salas de Estudio')}
+                    className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
+                  >
+                    Reservar sala
+                  </button>
+                </div>
+
+                {/* Tool 3 */}
+                <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
+                  <div>
+                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: 'rgba(254, 123, 2, 0.15)' }}>
+                      <Laptop className="h-6 w-6" style={{ color: '#FE7B02' }} />
+                    </div>
+                    <h3 className="font-bold text-sm text-foreground">Reserva de Equipos</h3>
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                      Solicita y reserva equipos tecnológicos o kits de laboratorio para tus proyectos.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowReservationForm('Reserva de Equipos')}
+                    className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
+                  >
+                    Reservar equipo
+                  </button>
+                </div>
+
+                {/* Tool 4 */}
+                <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
+                  <div>
+                    <div className="h-12 w-12 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: 'rgba(254, 123, 2, 0.15)' }}>
+                      <BookOpen className="h-6 w-6" style={{ color: '#FE7B02' }} />
+                    </div>
+                    <h3 className="font-bold text-sm text-foreground">Biblioteca UTEC</h3>
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                      Consulta la disponibilidad de libros y reserva cubículos de estudio en la biblioteca central.
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setShowReservationForm('Biblioteca UTEC')}
+                    className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
+                  >
+                    Consultar biblioteca
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: HISTORIAL Y PENALIZACIONES (STEP 6) */}
+          {activeTab === 'historial' && (
+            <div className="max-w-3xl mx-auto space-y-6">
+              
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Reservas y Asistencia</h1>
+                <p className="text-xs text-muted-foreground mt-1">Monitorea tus reservas activas e historial de cumplimiento académico.</p>
+              </div>
+
+              {/* Tabs Section matching prototype */}
+              <div className="rounded-3xl border bg-white p-6 sm:p-8 shadow-card border-border/40">
+                
+                {/* Tabs Headers */}
+                <div className="flex border-b mb-6 border-border/60">
+                  <button 
+                    onClick={() => setActiveBookingTab('prox')}
+                    className={`pb-4 px-4 text-xs font-bold transition-all border-b-2 relative cursor-pointer ${
+                      activeBookingTab === 'prox' 
+                        ? 'border-[color:var(--brand-purple)] text-[color:var(--brand-purple)]' 
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Próximas
+                  </button>
+                  <button 
+                    onClick={() => setActiveBookingTab('comp')}
+                    className={`pb-4 px-4 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+                      activeBookingTab === 'comp' 
+                        ? 'border-[color:var(--brand-purple)] text-[color:var(--brand-purple)]' 
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Completadas
+                  </button>
+                  <button 
+                    onClick={() => setActiveBookingTab('canc')}
+                    className={`pb-4 px-4 text-xs font-bold transition-all border-b-2 cursor-pointer ${
+                      activeBookingTab === 'canc' 
+                        ? 'border-[color:var(--brand-purple)] text-[color:var(--brand-purple)]' 
+                        : 'border-transparent text-muted-foreground hover:text-foreground'
+                    }`}
+                  >
+                    Canceladas (Faltas)
+                  </button>
+                </div>
+
+                {/* Tab content */}
+                {activeBookingTab === 'canc' && (
+                  <div className="space-y-4">
+                    {bookings.filter(b => b.status === 'no-show').map((booking) => (
+                      <div 
+                        key={booking.id}
+                        className="rounded-2xl border border-border/60 p-5 relative overflow-hidden animate-in fade-in-0 duration-200 bg-white shadow-soft"
+                      >
+                        {/* Red warning border on left */}
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-600"></div>
+
+                        <div className="flex justify-between items-start gap-4 pl-2">
+                          <div>
+                            <h3 className="font-bold text-sm text-foreground">{booking.title}</h3>
+                            <p className="text-[11px] mt-1 text-muted-foreground">{booking.group}</p>
+                            
+                            <div className="flex items-center gap-4 mt-3 text-[11px] text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="h-3.5 w-3.5" />
+                                {booking.date}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                {booking.time}
+                              </span>
+                            </div>
+                          </div>
+
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 shrink-0 border border-red-100">
+                            No asistió
+                          </span>
+                        </div>
+
+                        {/* Coevaluation Penalization Alert Box matching Step 6 */}
+                        <div className="mt-5 flex gap-3 rounded-xl border p-4 bg-red-50/50 border-red-200/60">
+                          <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
+                          <div className="text-xs leading-relaxed">
+                            <p className="font-bold text-red-600">Penalización aplicada</p>
+                            <p className="mt-0.5 text-muted-foreground">
+                              No asististe a la reserva sin justificación válida. Se aplicó una penalización automática equivalente al <strong className="text-foreground">20% de tu calificación final de coevaluación</strong>.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Upcoming bookings */}
+                {activeBookingTab === 'prox' && (
+                  <div className="space-y-4 text-center py-8">
+                    {bookings.filter(b => b.status === 'pending').length === 0 ? (
+                      <p className="text-xs text-muted-foreground">No tienes próximas reservas agendadas.</p>
+                    ) : (
+                      <div className="space-y-4 text-left">
+                        {bookings.filter(b => b.status === 'pending').map(b => (
+                          <div key={b.id} className="rounded-2xl border border-border/60 bg-white p-5 flex justify-between items-center shadow-soft">
+                            <div>
+                              <h3 className="font-bold text-sm text-foreground">{b.title}</h3>
+                              <p className="text-[11px] text-muted-foreground">{b.group}</p>
+                              <p className="text-[11px] mt-2 text-muted-foreground">{b.date} • {b.time}</p>
+                            </div>
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-green-50 text-green-600 border border-green-100">
+                              Confirmada
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Completed bookings */}
+                {activeBookingTab === 'comp' && (
+                  <div className="text-center py-8">
+                    <p className="text-xs text-muted-foreground">No hay reservas completadas recientemente en tu historial.</p>
+                  </div>
+                )}
+
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: MIS GRUPOS */}
+          {activeTab === 'grupos' && (
+            <div className="space-y-6">
+              
+              <div className="flex justify-between items-center">
+                <div>
+                  <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Mis Grupos de Estudio</h1>
+                  <p className="text-xs text-muted-foreground mt-1">Revisa y chatea con los miembros de tus grupos académicos activos.</p>
+                </div>
+                <button 
+                  onClick={() => setShowCreateGroup(true)}
+                  className="px-4 py-2 rounded-xl bg-gradient-brand text-white text-xs font-semibold hover:opacity-90 flex items-center gap-1.5 shadow-soft hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer"
+                >
+                  <Plus className="h-4.5 w-4.5" />
+                  <span>Crear grupo</span>
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {myGroups.map((group) => (
+                  <div key={group.id} className="rounded-2xl border border-border/60 bg-white p-6 hover:shadow-soft transition-all flex flex-col justify-between shadow-card">
+                    <div>
+                      <div className="flex justify-between items-start gap-4">
+                        <h3 className="font-extrabold text-base text-foreground">{group.name}</h3>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-[color:var(--brand-purple)]/10 text-[color:var(--brand-purple)]">
+                          {group.courseName}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{group.members} miembros activos</p>
+                      <p className="text-xs text-muted-foreground mt-4 leading-relaxed">{group.description}</p>
+                    </div>
+
+                    <div className="mt-6 pt-4 border-t border-border/60 flex justify-between items-center">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] text-green-600 font-bold">
+                        <span className="h-2 w-2 rounded-full bg-green-500 animate-ping"></span>
+                        Estudio activo
+                      </span>
+                      <button 
+                        onClick={() => handleOpenChat(group.name)}
+                        className="px-4 py-2 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition flex items-center gap-1 cursor-pointer bg-white shadow-soft"
+                      >
+                        <span>Entrar al chat</span>
+                        <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* VIEWS: PLACEHOLDERS (PERFIL, CONFIGURACIÓN) */}
+          {activeTab === 'perfil' && (
+            <div className="max-w-xl mx-auto rounded-3xl border border-border/60 bg-white p-8 text-center space-y-6 shadow-card">
+              <div className="h-24 w-24 rounded-full bg-gradient-brand flex items-center justify-center text-white text-3xl font-extrabold mx-auto shadow-lg select-none">
+                {getInitials(user.username)}
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold text-foreground">{formatName(user.username)}</h1>
+                <p className="text-xs text-muted-foreground mt-1">{user.email}</p>
+              </div>
+              
+              <div className="rounded-xl p-4 text-xs border border-border/60 bg-muted/40 text-muted-foreground flex justify-between items-center shadow-soft">
+                <span>Carrera Universitaria:</span>
+                <span className="font-bold text-foreground">Ingeniería del Aprendizaje (DDS)</span>
+              </div>
+              
+              <div className="rounded-xl p-4 text-xs border border-border/60 bg-muted/40 text-muted-foreground flex justify-between items-center shadow-soft">
+                <span>Rol del Sistema:</span>
+                <span className="font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-full border border-green-100">
+                  Estudiante Autorizado (UTEC)
+                </span>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'configuracion' && (
+            <div className="max-w-xl mx-auto rounded-3xl border border-border/60 bg-white p-8 space-y-6 shadow-card">
+              <h2 className="text-xl font-bold text-foreground border-b border-border/60 pb-3">Configuración de la Cuenta</h2>
+              <div className="space-y-4 text-xs text-muted-foreground">
+                <div className="flex justify-between items-center">
+                  <span>Notificaciones por Correo:</span>
+                  <input type="checkbox" defaultChecked className="h-4 w-4 accent-[color:var(--brand-purple)] cursor-pointer" />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Recordatorio de Reservas (15 min antes):</span>
+                  <input type="checkbox" defaultChecked className="h-4 w-4 accent-[color:var(--brand-purple)] cursor-pointer" />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span>Visualización en Light Mode:</span>
+                  <input type="checkbox" defaultChecked disabled className="h-4 w-4 accent-[color:var(--brand-purple)]" />
+                </div>
+              </div>
+            </div>
+          )}
+
+        </main>
+      </div>
+
+      {/* MODAL: CREAR GRUPO DE ESTUDIO (STEP 4) */}
+      {showCreateGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
+          <div className="relative w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-foreground mb-1">Crear nuevo grupo</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Crea un grupo de estudio de <strong className="text-foreground">{selectedCourse}</strong> para colaborar con otros alumnos.
+            </p>
+            
+            <form onSubmit={handleCreateGroupSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Nombre del Grupo
+                </label>
+                <input
+                  type="text"
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  placeholder="Ej. Estudio Cálculo 1 - Grupo 4"
+                  className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none transition-all"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Descripción (Opcional)
+                </label>
+                <textarea
+                  value={newGroupDesc}
+                  onChange={(e) => setNewGroupDesc(e.target.value)}
+                  placeholder="Ej. Nos reuniremos los martes a resolver prácticas dirigidas..."
+                  className="w-full rounded-xl border border-border px-4 py-3 text-sm h-20 transition-all resize-none focus:outline-none"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowCreateGroup(false);
+                    setNewGroupName('');
+                    setNewGroupDesc('');
+                  }}
+                  className="rounded-xl border border-border text-xs font-semibold px-4 py-2 hover:bg-muted active:scale-95 transition-all cursor-pointer text-foreground bg-white"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="rounded-xl bg-gradient-brand text-white text-xs font-semibold px-4 py-2 hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                >
+                  Crear grupo
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: RESERVAR HERRAMIENTA (STEP 5) */}
+      {showReservationForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
+          <div className="relative w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-lg font-bold text-foreground mb-1">{showReservationForm}</h3>
+            <p className="text-xs text-muted-foreground mb-4">
+              Completa los datos para realizar la reserva en el sistema de UTEC Conexión.
+            </p>
+            
+            <form onSubmit={handleReserveSubmit} className="space-y-4">
+              
+              {reservationSuccess ? (
+                <div className="text-center py-6 space-y-3">
+                  <div className="h-12 w-12 rounded-full bg-green-50 flex items-center justify-center mx-auto text-green-600 border border-green-100">
+                    <Check className="h-6 w-6" />
+                  </div>
+                  <h4 className="font-bold text-sm text-green-600">¡Reserva realizada con éxito!</h4>
+                  <p className="text-[11px] text-muted-foreground">Redirigiendo a tu historial de reservas...</p>
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Fecha de Reserva
+                    </label>
+                    <input
+                      type="date"
+                      defaultValue="2026-06-05"
+                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none transition-all bg-white text-foreground"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                      Hora de la Reserva
+                    </label>
+                    <select
+                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none transition-all bg-white text-foreground"
+                      required
+                    >
+                      <option>10:00 - 12:00</option>
+                      <option>12:00 - 14:00</option>
+                      <option>14:00 - 16:00</option>
+                      <option>16:00 - 18:00</option>
+                    </select>
+                  </div>
+
+                  <div className="flex justify-end gap-3 pt-2">
+                    <button 
+                      type="button"
+                      onClick={() => setShowReservationForm(null)}
+                      className="rounded-xl border border-border text-xs font-semibold px-4 py-2 hover:bg-muted active:scale-95 transition-all cursor-pointer text-foreground bg-white"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      type="submit"
+                      className="rounded-xl bg-gradient-brand text-white text-xs font-semibold px-4 py-2 hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                    >
+                      Confirmar Reserva
+                    </button>
+                  </div>
+                </>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: CHAT GRUPAL INTERACTIVO */}
+      {activeChatGroup && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+            
+            {/* Header */}
+            <div className="p-5 border-b border-border/60 flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-gradient-brand flex items-center justify-center font-bold text-white text-sm select-none">
+                  {getInitials(activeChatGroup)}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-sm text-foreground">{activeChatGroup}</h3>
+                  <p className="text-[10px] text-green-600 font-semibold flex items-center gap-1">
+                    <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-ping"></span>
+                    Chat de Estudio UTEC Conexión
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setActiveChatGroup(null)}
+                className="text-xs font-semibold text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-xl border border-transparent hover:border-border transition cursor-pointer bg-muted/40 hover:bg-muted"
+              >
+                Cerrar
+              </button>
+            </div>
+
+            {/* Chat Messages Area with beautiful bubbles */}
+            <div className="flex-1 p-5 overflow-y-auto space-y-4 min-h-[300px] max-h-[450px] bg-muted/20">
+              {chatMessages.map((msg) => (
+                <div 
+                  key={msg.id}
+                  className={`flex flex-col max-w-[80%] ${msg.isMe ? 'ml-auto items-end' : 'items-start'}`}
+                >
+                  <span className="text-[10px] font-semibold text-muted-foreground mb-1 pl-1 select-none">
+                    {msg.sender} • {msg.time}
+                  </span>
+                  <div 
+                    className="rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-soft"
+                    style={{ 
+                      backgroundColor: msg.isMe ? 'var(--brand-orange)' : '#ffffff', 
+                      color: msg.isMe ? '#ffffff' : 'var(--foreground)', 
+                      border: msg.isMe ? 'none' : '1px solid #e4e4e7' 
+                    }}
+                  >
+                    {msg.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Input form */}
+            <form onSubmit={handleSendChatMessage} className="p-4 border-t border-border/60 flex gap-3 shrink-0 bg-white rounded-b-3xl">
+              <input
+                type="text"
+                value={newMessageText}
+                onChange={(e) => setNewMessageText(e.target.value)}
+                placeholder="Escribe tu mensaje aquí..."
+                className="flex-1 rounded-xl border border-border px-4 py-3 text-xs focus:outline-none transition-all text-foreground bg-white"
+                required
+                autoFocus
+              />
+              <button 
+                type="submit"
+                className="px-5 py-3 rounded-xl bg-gradient-brand text-white text-xs font-semibold shadow-soft hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+              >
+                Enviar
+              </button>
+            </form>
+
+          </div>
+        </div>
+      )}
+
+    </div>
+  );
+}

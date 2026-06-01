@@ -1,0 +1,97 @@
+/* Custom premium overrides for UTEC Conexión - Light Theme */
+
+/* Ensure the document is styled as light themed */
+html, body, #root {
+  background-color: #f6f9fb !important;
+  color: #18181b !important;
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+}
+
+/* Define variables in Light Mode to match original CSS variables exactly */
+:root {
+  --background: 240 4.8% 95.9% !important; /* #f6f9fb */
+  --foreground: 240 10% 3.9% !important; /* #09090b */
+  --card: 0 0% 100% !important; /* #ffffff */
+  --card-foreground: 240 10% 3.9% !important;
+  --popover: 0 0% 100% !important;
+  --popover-foreground: 240 10% 3.9% !important;
+  --primary: 24 99% 50% !important; /* Brand Orange #FE7B02 */
+  --primary-foreground: 0 0% 100% !important;
+  --secondary: 240 4.8% 95.9% !important;
+  --secondary-foreground: 240 5.9% 10% !important;
+  --muted: 240 4.8% 95.9% !important;
+  --muted-foreground: 240 3.8% 46.1% !important; /* #71717a */
+  --accent: 240 4.8% 95.9% !important;
+  --accent-foreground: 240 5.9% 10% !important;
+  --destructive: 0 84.2% 60.2% !important;
+  --destructive-foreground: 0 0% 98% !important;
+  --border: 240 5.9% 90% !important; /* #e4e4e7 */
+  --input: 240 5.9% 90% !important;
+  --ring: 24 99% 50% !important;
+  --radius: 0.75rem !important;
+  
+  /* Brand colors matching UTEC Conexión */
+  --brand-orange: #FE7B02;
+  --brand-purple: #a21caf;
+  --brand-blue: #1d4ed8;
+  --brand-green: #15803d;
+}
+
+/* Custom scrollbars for light mode */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #f6f9fb;
+}
+::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
+}
+
+/* Premium gradient utility */
+.bg-gradient-brand {
+  background-image: linear-gradient(135deg, #FE7B02 0%, #a21caf 50%, #1d4ed8 100%) !important;
+}
+
+.text-gradient-brand {
+  background-image: linear-gradient(135deg, #FE7B02 0%, #a21caf 100%) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+}
+
+/* Custom glowing shadows matching UTEC Conexión */
+.shadow-soft {
+  box-shadow: 0 2px 8px -1px rgba(0, 0, 0, 0.05), 0 1px 3px -1px rgba(0, 0, 0, 0.03) !important;
+}
+
+.shadow-card {
+  box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.05), 0 4px 12px -3px rgba(0, 0, 0, 0.03) !important;
+}
+
+/* Custom styles for inputs to ensure they look light and highly readable */
+input[type="text"], input[type="email"], input[type="password"], select, textarea {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+  border: 1px solid #e4e4e7 !important;
+}
+
+input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, select:focus, textarea:focus {
+  border-color: #15803d !important;
+  box-shadow: 0 0 0 2px rgba(21, 128, 61, 0.15) !important;
+}
+
+/* Styles for active sidebar navigation: light mode green highlight! */
+.nav-active {
+  background-color: rgba(21, 128, 61, 0.1) !important;
+  color: #15803d !important;
+}
+
+/* Smooth transitions */
+.transition-all {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
