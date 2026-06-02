@@ -52,8 +52,15 @@ export default function App() {
       
       setUser(loggedUser);
     } catch (err: any) {
-      console.error('Error connecting to backend:', err);
-      setError('Error al conectar con el servidor Spring Boot en localhost:8080. Por favor, inicie su servidor Spring Boot backend y vuelva a intentarlo.');
+      let msg = 'Error de conexión. Por favor, verifique que el servidor esté activo e intente nuevamente.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          msg = err.response.data;
+        } else if (err.response.data.message) {
+          msg = err.response.data.message;
+        }
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
