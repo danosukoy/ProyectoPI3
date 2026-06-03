@@ -35,7 +35,7 @@ export default function App() {
       const g = (window as any).google;
       if (g) {
         g.accounts.id.initialize({
-          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '1017997380962-gqmv929h2jmt7h9mfeghr5r4a7oqbvbg.apps.googleusercontent.com',
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '988062174173-r6h3ccaujcl3rv8ap8s32rnnrnu3tuho.apps.googleusercontent.com',
           callback: handleCredentialResponse,
         });
 

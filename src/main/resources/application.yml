@@ -25,6 +25,7 @@ spring:
 jwt:
   secret: ${JWT_SECRET:9a4f2c8d3b7a1e5f8g9h0i1j2k3l4m5n6o7p8q9r0s1t2u3v4w5x6y7z8a9b0c1d2e3f4g5h6i7j8k9l0m1n2o3p4q5r6s7t8u9v0w1x2y3z}
   expiration: ${JWT_EXPIRATION:86400000} # 24 hours in milliseconds
+  google-client-id: ${JWT_GOOGLE_CLIENT_ID:988062174173-r6h3ccaujcl3rv8ap8s32rnnrnu3tuho.apps.googleusercontent.com}
 
 springdoc:
   api-docs:
