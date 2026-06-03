@@ -39,4 +39,10 @@ public class User {
     @NotNull
     @Enumerated(EnumType.STRING)
     private Role role;
+
+    @Column(length = 100)
+    private String career;
+
+    @Column(length = 500)
+    private String enrolledCourses;
 }

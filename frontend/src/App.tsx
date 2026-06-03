@@ -22,8 +22,11 @@ interface UserData {
 }
 
 export default function App() {
-  // Session state (starts as null to showcase the welcome portal, logs in instantly with Google button)
-  const [user, setUser] = useState<UserData | null>(null);
+  // Session state (persists on device using localStorage)
+  const [user, setUser] = useState<UserData | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -84,6 +87,7 @@ export default function App() {
         role: role || 'ROLE_PARTICIPANT'
       };
       
+      localStorage.setItem('user', JSON.stringify(loggedUser));
       setUser(loggedUser);
     } catch (err: any) {
       console.error('Error connecting to backend:', err);
@@ -122,6 +126,7 @@ export default function App() {
         role: role || 'ROLE_PARTICIPANT'
       };
       
+      localStorage.setItem('user', JSON.stringify(loggedUser));
       setUser(loggedUser);
     } catch (err: any) {
       let msg = 'Error de conexión. Por favor, verifique que el servidor esté activo e intente nuevamente.';
@@ -142,6 +147,7 @@ export default function App() {
     setUser(null);
     setError(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   // If user is logged in, show Dashboard
