@@ -513,6 +513,17 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     return null;
   };
 
+  const handlePlusClick = () => {
+    setActiveTab('inicio');
+    setSelectedCourse(null);
+    setTimeout(() => {
+      const el = document.getElementById('seccion-cursos-grupos');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  };
+
   const handleJoinGroup = (groupName: string) => {
     const groupObj = availableGroups.find(g => g.name === groupName);
     if (groupObj && !joinedGroups.includes(groupName)) {
@@ -914,9 +925,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <button 
-              onClick={() => { setSelectedCourse('Programming Fundamentals'); }} 
+              onClick={handlePlusClick} 
               className="h-10 w-10 rounded-xl border-2 border-[color:var(--brand-green)] text-[color:var(--brand-green)] flex items-center justify-center hover:bg-[color:var(--brand-green)]/10 transition-colors"
-              title="Crear un grupo de estudio"
+              title="Ir a Cursos y Grupos"
             >
               <Plus className="h-5 w-5" />
             </button>
@@ -1254,7 +1265,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     {/* TWO GRIDS REQUESTED BY USER */}
                     
                     {/* Course Grid */}
-                    <section className="rounded-3xl bg-white shadow-card border border-border/40 p-6 space-y-6">
+                    <section id="seccion-cursos-grupos" className="rounded-3xl bg-white shadow-card border border-border/40 p-6 space-y-6">
                       <div>
                         <h2 className="text-xl font-bold text-foreground">Todos los Cursos Disponibles</h2>
                         <p className="text-xs text-muted-foreground mt-1">Inscríbete en los cursos generales y de carrera para acceder a sus grupos de estudio.</p>
