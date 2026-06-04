@@ -121,6 +121,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   // Reservation Mock State for Step 5
   const [showReservationForm, setShowReservationForm] = useState<string | null>(null);
   const [reservationSuccess, setReservationSuccess] = useState<boolean>(false);
+  const [reserveSpaceCode, setReserveSpaceCode] = useState<string>('');
+  const [reserveSubaulaGroup, setReserveSubaulaGroup] = useState<string>('');
+  const [reserveDate, setReserveDate] = useState<string>('2026-06-05');
+  const [reserveTime, setReserveTime] = useState<string>('10:00 - 12:00');
+  const [reserveError, setReserveError] = useState<string | null>(null);
 
   // Interactive Chat Mock State
   interface ChatMessage {
@@ -500,25 +505,50 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     setActiveTab('grupos'); // Go to groups tab
   };
 
+  const openReservationForm = (formType: string) => {
+    setReserveSpaceCode('');
+    // Try to auto-select the first subaula group they are registered in, if any
+    const subaulaGroups = availableGroups.filter(g => g.type === 'subaula');
+    const preselected = subaulaGroups.find(g => joinedGroups.includes(g.name));
+    setReserveSubaulaGroup(preselected ? preselected.name : '');
+    setReserveDate('2026-06-05');
+    setReserveTime('10:00 - 12:00');
+    setReserveError(null);
+    setShowReservationForm(formType);
+  };
+
   const handleReserveSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setReserveError(null);
+
+    if (!reserveSubaulaGroup) {
+      setReserveError('Por favor, selecciona un grupo de aula.');
+      return;
+    }
+
+    const isRegistered = joinedGroups.includes(reserveSubaulaGroup);
+    if (!isRegistered) {
+      setReserveError('Solo puedes realizar una reserva para un grupo de aula en el que estés registrado.');
+      return;
+    }
+
     setReservationSuccess(true);
 
     const bookingMock: Booking = {
       id: String(Date.now()),
-      title: showReservationForm || 'Reserva de Espacio',
-      group: 'Grupo de estudio privado',
-      date: 'Próxima semana',
-      time: '14:00 - 16:00',
+      title: `${showReservationForm} - Espacio: ${reserveSpaceCode}`,
+      group: reserveSubaulaGroup,
+      date: reserveDate,
+      time: reserveTime,
       status: 'pending'
     };
 
     try {
       // Create a reservation (match) in Spring Boot backend
       const response = await api.post('/matches', {
-        title: showReservationForm || 'Reserva de Cubículo',
-        description: 'Estudio cooperativo por UTEC Conexión',
-        matchDateTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days in future
+        title: `${showReservationForm} - Espacio: ${reserveSpaceCode}`,
+        description: reserveSubaulaGroup,
+        matchDateTime: new Date(reserveDate + 'T' + (reserveTime.split(' ')[0]) + ':00').toISOString(),
         locationId: 1, // Estadio / Coliseo / Cubículo sembrado
         disciplineId: 1, // Fútbol / Disciplina sembrada
         homeTeamId: 1, // Leones / Team sembrado
@@ -530,8 +560,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         const dateObj = new Date(response.data.matchDateTime || Date.now());
         const savedBooking: Booking = {
           id: String(response.data.id),
-          title: response.data.title || showReservationForm || 'Reserva de Cubículo',
-          group: response.data.description || 'Grupo de estudio privado',
+          title: response.data.title || `${showReservationForm} - Espacio: ${reserveSpaceCode}`,
+          group: response.data.description || reserveSubaulaGroup,
           date: dateObj.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }),
           time: 'Hora: ' + dateObj.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
           status: 'pending'
@@ -1634,7 +1664,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     </p>
                   </div>
                   <button 
-                    onClick={() => setShowReservationForm('Reserva de Aulas')}
+                    onClick={() => openReservationForm('Reserva de Aulas')}
                     className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
                   >
                     Reservar aula
@@ -1653,7 +1683,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     </p>
                   </div>
                   <button 
-                    onClick={() => setShowReservationForm('Reserva de Salas de Estudio')}
+                    onClick={() => openReservationForm('Reserva de Salas de Estudio')}
                     className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
                   >
                     Reservar sala
@@ -1672,7 +1702,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     </p>
                   </div>
                   <button 
-                    onClick={() => setShowReservationForm('Reserva de Equipos')}
+                    onClick={() => openReservationForm('Reserva de Equipos')}
                     className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
                   >
                     Reservar equipo
@@ -1691,7 +1721,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     </p>
                   </div>
                   <button 
-                    onClick={() => setShowReservationForm('Biblioteca UTEC')}
+                    onClick={() => openReservationForm('Biblioteca UTEC')}
                     className="mt-6 w-full py-2.5 rounded-xl border border-border text-xs font-semibold text-foreground hover:bg-muted transition-colors cursor-pointer bg-white"
                   >
                     Consultar biblioteca
@@ -2447,29 +2477,79 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               ) : (
                 <>
                   <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
-                      Fecha de Reserva
+                    <label className="block text-xs font-semibold text-foreground mb-1.5 text-left">
+                      Código del Espacio a Reservar
                     </label>
                     <input
-                      type="date"
-                      defaultValue="2026-06-05"
-                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none transition-all bg-white text-foreground"
+                      type="text"
+                      placeholder="Ej. A-101, Cubículo 4, Lab-3"
+                      value={reserveSpaceCode}
+                      onChange={(e) => setReserveSpaceCode(e.target.value)}
+                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none focus:border-[color:var(--brand-purple)] focus:ring-1 focus:ring-[color:var(--brand-purple)] transition-all bg-white text-foreground"
                       required
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    <label className="block text-xs font-semibold text-foreground mb-1.5 text-left">
+                      Grupo de Aula Relacionado
+                    </label>
+                    <select
+                      value={reserveSubaulaGroup}
+                      onChange={(e) => {
+                        setReserveSubaulaGroup(e.target.value);
+                        setReserveError(null);
+                      }}
+                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none focus:border-[color:var(--brand-purple)] focus:ring-1 focus:ring-[color:var(--brand-purple)] transition-all bg-white text-foreground cursor-pointer"
+                      required
+                    >
+                      <option value="">-- Selecciona un grupo de aula --</option>
+                      {availableGroups.filter(g => g.type === 'subaula' && joinedGroups.includes(g.name)).length === 0 ? (
+                        <option value="" disabled>
+                          No estás inscrito en ningún grupo de aula
+                        </option>
+                      ) : (
+                        availableGroups.filter(g => g.type === 'subaula' && joinedGroups.includes(g.name)).map((g) => (
+                          <option key={g.id} value={g.name}>
+                            {g.name}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                    {reserveError && (
+                      <p className="text-[10px] text-rose-500 font-semibold mt-1.5 text-left">
+                        {reserveError}
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5 text-left">
+                      Fecha de Reserva
+                    </label>
+                    <input
+                      type="date"
+                      value={reserveDate}
+                      onChange={(e) => setReserveDate(e.target.value)}
+                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none focus:border-[color:var(--brand-purple)] focus:ring-1 focus:ring-[color:var(--brand-purple)] transition-all bg-white text-foreground"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-foreground mb-1.5 text-left">
                       Hora de la Reserva
                     </label>
                     <select
-                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none transition-all bg-white text-foreground"
+                      value={reserveTime}
+                      onChange={(e) => setReserveTime(e.target.value)}
+                      className="w-full rounded-xl border border-border px-4 py-3 text-sm focus:outline-none focus:border-[color:var(--brand-purple)] focus:ring-1 focus:ring-[color:var(--brand-purple)] transition-all bg-white text-foreground cursor-pointer"
                       required
                     >
-                      <option>10:00 - 12:00</option>
-                      <option>12:00 - 14:00</option>
-                      <option>14:00 - 16:00</option>
-                      <option>16:00 - 18:00</option>
+                      <option value="10:00 - 12:00">10:00 - 12:00</option>
+                      <option value="12:00 - 14:00">12:00 - 14:00</option>
+                      <option value="14:00 - 16:00">14:00 - 16:00</option>
+                      <option value="16:00 - 18:00">16:00 - 18:00</option>
                     </select>
                   </div>
 
