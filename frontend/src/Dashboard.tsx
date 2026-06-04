@@ -30,7 +30,9 @@ import {
   MessageCircle,
   GraduationCap,
   TrendingUp,
-  Loader2
+  Loader2,
+  Star,
+  Lock
 } from 'lucide-react';
 
 interface UserData {
@@ -50,6 +52,8 @@ interface Group {
   courseName: string;
   members: number;
   description: string;
+  type: 'normal' | 'subaula';
+  subaula?: string;
 }
 
 interface Booking {
@@ -73,15 +77,23 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [showCreateGroup, setShowCreateGroup] = useState<boolean>(false);
   const [newGroupName, setNewGroupName] = useState<string>('');
   const [newGroupDesc, setNewGroupDesc] = useState<string>('');
+  const [newGroupType, setNewGroupType] = useState<'normal' | 'subaula'>('normal');
+  const [newGroupSubaula, setNewGroupSubaula] = useState<string>('Aula 1');
+
+  const [userSubaulas, setUserSubaulas] = useState<Record<string, string>>({
+    'Cálculo I': 'Aula 1',
+    'Programming Fundamentals': 'Aula 2'
+  });
 
   const [joinedGroups, setJoinedGroups] = useState<string[]>(['Grupo de Repaso Cálculo 1']);
   const [availableGroups, setAvailableGroups] = useState<Group[]>([
-    { id: '1', name: 'Grupo de Repaso Cálculo 1', courseName: 'Cálculo I', members: 4, description: 'Estudiamos los fines de semana límites y derivadas.' },
-    { id: '2', name: 'Grupo de Matemáticas Aplicadas', courseName: 'Cálculo I', members: 5, description: 'Grupo para reforzar temas de matemáticas y preparar exámenes.' },
-    { id: '3', name: 'Grupo de Programación Web', courseName: 'Programming Fundamentals', members: 8, description: 'Aprendemos juntos desarrollo web desde cero. ¡Todos los niveles!' },
-    { id: '4', name: 'Grupo de Física General', courseName: 'Física General', members: 6, description: 'Resolución de ejercicios y preparación de prácticas de laboratorio.' },
-    { id: '5', name: 'Grupo de Educación y Sociedad', courseName: 'Educación y Sociedad', members: 3, description: 'Debatimos sobre las lecturas y preparamos los ensayos semanales.' },
-    { id: '6', name: 'Grupo de Diseño Curricular', courseName: 'Diseño Curricular', members: 7, description: 'Planificación de unidades de aprendizaje y desarrollo de rúbricas.' }
+    { id: '1', name: 'Grupo de Repaso Cálculo 1', courseName: 'Cálculo I', members: 4, description: 'Estudiamos los fines de semana límites y derivadas.', type: 'normal' },
+    { id: '2', name: 'Aula 1 - Cálculo 1 (Exclusivo)', courseName: 'Cálculo I', members: 3, description: 'Grupo de trabajo exclusivo para alumnos del Aula 101 de Cálculo I.', type: 'subaula', subaula: 'Aula 1' },
+    { id: '3', name: 'Aula 2 - Cálculo 1 (Exclusivo)', courseName: 'Cálculo I', members: 2, description: 'Grupo de trabajo exclusivo para alumnos del Aula 102 de Cálculo I.', type: 'subaula', subaula: 'Aula 2' },
+    { id: '4', name: 'Grupo de Programación Web', courseName: 'Programming Fundamentals', members: 8, description: 'Aprendemos juntos desarrollo web desde cero. ¡Todos los niveles!', type: 'normal' },
+    { id: '5', name: 'Aula 2 - Prog. Web (Exclusivo)', courseName: 'Programming Fundamentals', members: 5, description: 'Grupo exclusivo para resolver proyectos prácticos de la sección Aula 102.', type: 'subaula', subaula: 'Aula 2' },
+    { id: '6', name: 'Grupo de Física General', courseName: 'Física General', members: 6, description: 'Resolución de ejercicios y preparación de prácticas de laboratorio.', type: 'normal' },
+    { id: '7', name: 'Aula 1 - Física General (Exclusivo)', courseName: 'Física General', members: 3, description: 'Grupo de estudio exclusivo para alumnos del Aula 101 de Física General.', type: 'subaula', subaula: 'Aula 1' }
   ]);
   const myGroups = availableGroups.filter(g => joinedGroups.includes(g.name));
 
@@ -116,13 +128,48 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [profileErrorMsg, setProfileErrorMsg] = useState<string | null>(null);
   const [enrolledCourses, setEnrolledCourses] = useState<string[]>([]);
 
+  // Community rating system states (completely anonymous)
+  const [communityUsers, setCommunityUsers] = useState<any[]>([]);
+  const [loadingCommunity, setLoadingCommunity] = useState<boolean>(false);
+  const [communitySearch, setCommunitySearch] = useState<string>('');
+
+  const loadCommunityUsers = async () => {
+    setLoadingCommunity(true);
+    try {
+      const response = await api.get('/users');
+      setCommunityUsers(response.data);
+    } catch (err) {
+      console.warn('Error loading community users from backend. Using local mock profiles.', err);
+      // Fallback local mock community
+      setCommunityUsers([
+        { id: 4, username: 'Diego Alva', email: 'diego.alva@utec.edu.pe', career: 'Ciencias de la Computación', averageRating: 4.3, ratingCount: 3, userRating: null },
+        { id: 5, username: 'Mateo Rojas', email: 'mateo.rojas@utec.edu.pe', career: 'Sistemas de la Información', averageRating: 4.7, ratingCount: 5, userRating: null },
+        { id: 6, username: 'Lucía Méndez', email: 'lucia.mendez@utec.edu.pe', career: 'Ingeniería Civil', averageRating: 4.0, ratingCount: 2, userRating: null }
+      ]);
+    } finally {
+      setLoadingCommunity(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'comunidad') {
+      loadCommunityUsers();
+    }
+  }, [activeTab]);
+
+  const handleRateCommunityUser = async (userId: number, stars: number) => {
+    try {
+      await api.post(`/users/${userId}/rate`, { stars });
+      loadCommunityUsers();
+    } catch (err: any) {
+      console.error('Error submitting rating:', err);
+      alert(err.response?.data?.message || 'No se pudo guardar la calificación.');
+    }
+  };
+
   const handleOpenChat = (groupName: string) => {
     setActiveChatGroup(groupName);
-    setChatMessages([
-      { id: '1', sender: 'Diego Alva', text: '¡Hola a todos! ¿Alguien tiene resuelta la pregunta 3 de la guía de Cálculo?', time: '14:32', isMe: false },
-      { id: '2', sender: 'Mateo Rojas', text: 'Sí, yo la resolví. Sale -1.5, usando la regla de la cadena para la derivada externa.', time: '14:35', isMe: false },
-      { id: '3', sender: 'Lucía Méndez', text: '¡Buenísimo Mateo! ¿Nos reunimos hoy en la tarde en la Sala 3 a repasar antes del control?', time: '14:38', isMe: false }
-    ]);
+    setChatMessages([]);
     setNewMessageText('');
   };
 
@@ -169,7 +216,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             name: team.name,
             courseName: team.university || 'General',
             members: 4 + (team.id % 5), // Mock member count logically based on ID
-            description: `Grupo colaborativo registrado en el backend de UTEC Conexión para ${team.university || 'General'}.`
+            description: `Grupo colaborativo registrado en el backend de UTEC Conexión para ${team.university || 'General'}.`,
+            type: team.type || 'normal',
+            subaula: team.subaula
           }));
           
           if (loadedGroups.length > 0) {
@@ -280,7 +329,60 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       .join(' ');
   };
 
+  const getMemberGroups = (username: string): string[] => {
+    const normalized = username.toLowerCase().trim();
+    if (normalized.includes('diego')) {
+      return ['Grupo de Repaso Cálculo 1', 'Grupo de Programación Web', 'Grupo de Diseño Curricular'];
+    } else if (normalized.includes('mateo')) {
+      return ['Grupo de Matemáticas Aplicadas', 'Grupo de Programación Web', 'Grupo de Educación y Sociedad'];
+    } else if (normalized.includes('lucía') || normalized.includes('lucia')) {
+      return ['Grupo de Repaso Cálculo 1', 'Grupo de Matemáticas Aplicadas', 'Grupo de Física General'];
+    }
+    
+    // Fallback based on career for other dynamically loaded users
+    const member = communityUsers.find(u => u.username === username);
+    const career = member?.career || '';
+    if (career.includes('Computación') || career.includes('Sistemas')) {
+      return ['Grupo de Programación Web', 'Grupo de Diseño Curricular'];
+    } else if (career.includes('Civil') || career.includes('Ambiental') || career.includes('Energía')) {
+      return ['Grupo de Repaso Cálculo 1', 'Grupo de Física General', 'Grupo de Matemáticas Aplicadas'];
+    }
+    
+    return ['Grupo de Repaso Cálculo 1'];
+  };
+
+  const getGroupRestrictionError = (group: Group): string | null => {
+    if (joinedGroups.includes(group.name)) {
+      return null;
+    }
+
+    const isEnrolled = enrolledCourses.includes(group.courseName);
+    if (!isEnrolled) {
+      return `Inscríbete en el curso de ${group.courseName} primero.`;
+    }
+
+    if (group.type === 'subaula') {
+      const userAula = userSubaulas[group.courseName] || 'Aula 1';
+      if (userAula !== group.subaula) {
+        const expectedFriendly = group.subaula === 'Aula 1' ? 'Aula 101' : (group.subaula === 'Aula 2' ? 'Aula 102' : 'Aula 103');
+        const userFriendly = userAula === 'Aula 1' ? 'Aula 101' : (userAula === 'Aula 2' ? 'Aula 102' : 'Aula 103');
+        return `Grupo exclusivo de ${expectedFriendly} (Tu sección: ${userFriendly}).`;
+      }
+    }
+
+    return null;
+  };
+
   const handleJoinGroup = (groupName: string) => {
+    const groupObj = availableGroups.find(g => g.name === groupName);
+    if (groupObj && !joinedGroups.includes(groupName)) {
+      const err = getGroupRestrictionError(groupObj);
+      if (err) {
+        alert(err);
+        return;
+      }
+    }
+
     if (joinedGroups.includes(groupName)) {
       setJoinedGroups(joinedGroups.filter(g => g !== groupName));
     } else {
@@ -297,14 +399,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       name: newGroupName.trim(),
       courseName: selectedCourse || 'General',
       members: 1,
-      description: newGroupDesc.trim() || 'Grupo de estudio recién creado para colaborar.'
+      description: newGroupDesc.trim() || 'Grupo de estudio recién creado para colaborar.',
+      type: newGroupType,
+      subaula: newGroupType === 'subaula' ? newGroupSubaula : undefined
     };
 
     try {
       // POST to Spring Boot backend to save the new team
       const response = await api.post('/teams', {
         name: newGroupName.trim(),
-        university: selectedCourse || 'General' // Map the course to the university property in Team model
+        university: selectedCourse || 'General', // Map the course to the university property in Team model
+        type: newGroupType,
+        subaula: newGroupType === 'subaula' ? newGroupSubaula : undefined
       });
 
       if (response.data && response.data.id) {
@@ -313,7 +419,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           name: response.data.name,
           courseName: response.data.university || 'General',
           members: 1,
-          description: newGroupDesc.trim() || 'Grupo de estudio registrado y guardado en el servidor.'
+          description: newGroupDesc.trim() || 'Grupo de estudio registrado y guardado en el servidor.',
+          type: response.data.type || newGroupType,
+          subaula: response.data.subaula || (newGroupType === 'subaula' ? newGroupSubaula : undefined)
         };
         setAvailableGroups(prev => [...prev, savedGroup]);
         setJoinedGroups(prev => [...prev, savedGroup.name]);
@@ -329,6 +437,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
     setNewGroupName('');
     setNewGroupDesc('');
+    setNewGroupType('normal');
+    setNewGroupSubaula('Aula 1');
     setShowCreateGroup(false);
     setSelectedCourse(null);
     setActiveTab('grupos'); // Go to groups tab
@@ -414,6 +524,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     course.area.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Filter UTEC classmates: only show students with whom the user shares at least one group (Team)
+  const filteredCommunity = communityUsers.filter(u => {
+    if (u.username === user.username) return false; // Exclude current user from rating classmates list
+    const memberGroups = getMemberGroups(u.username);
+    return joinedGroups.some(g => memberGroups.includes(g));
+  }).filter(u => 
+    u.username.toLowerCase().includes(communitySearch.toLowerCase()) || 
+    (u.career && u.career.toLowerCase().includes(communitySearch.toLowerCase()))
+  );
+
   return (
     <div className="min-h-screen flex text-foreground font-display bg-[#f6f9fb]">
       
@@ -461,6 +581,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           >
             <Users className="h-5 w-5" />
             <span>Mis grupos</span>
+          </button>
+
+          <button 
+            onClick={() => { setActiveTab('comunidad'); setSelectedCourse(null); }}
+            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors cursor-pointer ${
+              activeTab === 'comunidad' 
+                ? 'bg-[color:var(--brand-green)]/10 text-[color:var(--brand-green)]' 
+                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+            }`}
+          >
+            <Compass className="h-5 w-5" />
+            <span>Comunidad</span>
           </button>
           
           <button 
@@ -929,16 +1061,31 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {availableGroups.map((group) => {
                           const isJoined = joinedGroups.includes(group.name);
+                          const restrictionError = getGroupRestrictionError(group);
+
                           return (
                             <div 
                               key={group.id}
-                              className="relative rounded-2xl border border-border/60 p-5 hover:shadow-soft transition bg-white flex flex-col justify-between"
+                              className={`relative rounded-2xl border p-5 transition bg-white flex flex-col justify-between ${
+                                restrictionError 
+                                  ? 'border-border/40 opacity-75 hover:opacity-100' 
+                                  : 'border-border/60 hover:shadow-soft'
+                              }`}
                             >
                               <div>
-                                <div className="flex justify-between items-start gap-2 mb-3">
+                                <div className="flex flex-wrap items-center gap-1.5 mb-3">
                                   <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[color:var(--brand-purple)]/10 text-[color:var(--brand-purple)]">
                                     {group.courseName}
                                   </span>
+                                  {group.type === 'subaula' ? (
+                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/50">
+                                      Sección Exclusiva
+                                    </span>
+                                  ) : (
+                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/50">
+                                      Grupo Común
+                                    </span>
+                                  )}
                                   {isJoined && (
                                     <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100">
                                       Miembro
@@ -949,15 +1096,25 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                                 <h3 className="font-bold text-foreground text-sm leading-snug">{group.name}</h3>
                                 <p className="text-[10px] text-muted-foreground mt-1">{group.members} miembros</p>
                                 <p className="text-xs text-muted-foreground mt-3 leading-relaxed line-clamp-3">{group.description}</p>
+
+                                {restrictionError && (
+                                  <div className="mt-3 p-2 bg-rose-50/50 border border-rose-100 rounded-xl flex items-start gap-1.5 text-[9px] text-rose-500 font-bold leading-tight select-none">
+                                    <Lock className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                                    <span>{restrictionError}</span>
+                                  </div>
+                                )}
                               </div>
                               
                               <div className="mt-4 pt-3 border-t border-border/40 flex gap-2">
                                 <button 
                                   onClick={() => handleJoinGroup(group.name)}
-                                  className={`flex-1 py-2 rounded-xl font-bold text-[10px] transition-all cursor-pointer text-center ${
+                                  disabled={!!restrictionError}
+                                  className={`flex-1 py-2 rounded-xl font-bold text-[10px] transition-all text-center ${
                                     isJoined
-                                      ? 'border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50'
-                                      : 'border border-[color:var(--brand-blue)] text-[color:var(--brand-blue)] hover:bg-[color:var(--brand-blue)]/5 bg-transparent'
+                                      ? 'border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 cursor-pointer'
+                                      : restrictionError
+                                        ? 'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
+                                        : 'border border-[color:var(--brand-blue)] text-[color:var(--brand-blue)] hover:bg-[color:var(--brand-blue)]/5 bg-transparent cursor-pointer'
                                   }`}
                                 >
                                   {isJoined ? 'Salir' : 'Unirse'}
@@ -1098,107 +1255,297 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
           {/* VIEW: STEP 4 (CREAR O UNIRSE A UN GRUPO DE CHAT) */}
           {selectedCourse && (
-            <div className="max-w-3xl mx-auto space-y-6">
+            <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in duration-200">
               
               {/* Back Button */}
               <button 
                 onClick={() => setSelectedCourse(null)}
-                className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer mb-2"
+                className="flex items-center gap-2 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors cursor-pointer mb-2"
               >
                 <ChevronRight className="h-4 w-4 rotate-180" />
                 <span>Volver a Cursos</span>
               </button>
 
-              <div className="rounded-3xl border bg-white p-8 sm:p-10 shadow-card border-border/60">
-                <div className="text-center max-w-md mx-auto mb-10">
-                  <div className="h-14 w-14 rounded-full flex items-center justify-center mx-auto mb-4 bg-[color:var(--brand-purple)]/10 text-[color:var(--brand-purple)]">
-                    <BookMarked className="h-7 w-7" />
-                  </div>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-foreground">{selectedCourse}</h1>
-                  <p className="text-xs text-muted-foreground mt-2">Selecciona una opción para continuar en UTEC Conexión</p>
-                  
-                  <div className="mt-4 flex justify-center">
-                    <button
-                      onClick={() => handleEnrollCourse(selectedCourse)}
-                      className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-soft border ${
-                        enrolledCourses.includes(selectedCourse)
-                          ? 'bg-red-500/10 text-red-600 border-red-500/20 hover:bg-red-500/20'
-                          : 'bg-[color:var(--brand-purple)] text-white border-transparent hover:opacity-90'
-                      }`}
-                    >
-                      {enrolledCourses.includes(selectedCourse) ? (
-                        <>
-                          <LogOut className="h-4 w-4 rotate-180" />
-                          <span>Desinscribirse de este curso</span>
-                        </>
-                      ) : (
-                        <>
-                          <BookOpen className="h-4 w-4" />
-                          <span>Inscribirse en este curso</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
+              {/* Course Header Banner */}
+              {(() => {
+                const allCourses = [...generalCourses, ...filterCourses];
+                const course = allCourses.find(c => c.name === selectedCourse) || {
+                  name: selectedCourse,
+                  area: 'Área General',
+                  icon: BookOpen,
+                  color: '#6b7280',
+                  bg: 'rgba(107, 114, 128, 0.15)'
+                };
+                const IconComponent = course.icon;
+                const isEnrolled = enrolledCourses.includes(selectedCourse);
+                const currentAula = userSubaulas[selectedCourse];
 
-                <div className="grid sm:grid-cols-2 gap-6 items-stretch">
-                  
-                  {/* Option A: Crear Grupo */}
-                  <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
-                    <div>
-                      <div className="h-10 w-10 rounded-xl flex items-center justify-center mb-4 bg-green-500/10 text-green-600">
-                        <Users className="h-5 w-5" />
+                // Mock group lists
+                const courseGroups = availableGroups.filter(g => g.courseName === selectedCourse);
+                const subaulaGroups = courseGroups.filter(g => g.type === 'subaula');
+                const normalGroups = courseGroups.filter(g => g.type === 'normal');
+
+                return (
+                  <div className="space-y-6">
+                    {/* Header Card */}
+                    <div className="rounded-3xl border border-border/60 bg-white p-6 sm:p-8 shadow-card flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                      <div className="flex items-center gap-4">
+                        <div className="h-14 w-14 rounded-2xl flex items-center justify-center shadow-soft" style={{ backgroundColor: course.bg }}>
+                          <IconComponent className="h-7 w-7" style={{ color: course.color }} />
+                        </div>
+                        <div className="text-left">
+                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-muted text-muted-foreground uppercase tracking-wider">
+                            {course.area}
+                          </span>
+                          <h1 className="text-xl sm:text-2xl font-extrabold text-foreground leading-tight mt-1">{selectedCourse}</h1>
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            {isEnrolled 
+                              ? `Inscrito en el curso • Sección actual: ${currentAula ? currentAula.replace('Aula 1', 'Aula 101').replace('Aula 2', 'Aula 102').replace('Aula 3', 'Aula 103').replace('Aula 4', 'Aula 104') : 'Sin sección'}`
+                              : 'No estás inscrito en este curso todavía'
+                            }
+                          </p>
+                        </div>
                       </div>
-                      <h3 className="font-bold text-base text-foreground">Crear grupo</h3>
-                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                        Crea un nuevo grupo de estudio privado o público y comienza a colaborar con tus compañeros en este curso.
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => setShowCreateGroup(true)}
-                      className="mt-6 w-full py-3 rounded-xl border font-bold text-xs hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex items-center justify-center gap-1.5"
-                      style={{ borderColor: 'rgba(254, 123, 2, 0.4)', backgroundColor: 'transparent', color: '#FE7B02' }}
-                    >
-                      <Plus className="h-4.5 w-4.5" />
-                      <span>Crear grupo</span>
-                    </button>
-                  </div>
 
-                  {/* Option B: Unirse a Grupo */}
-                  <div className="rounded-2xl border border-border/60 bg-white p-6 flex flex-col justify-between hover:shadow-soft transition-all">
-                    <div>
-                      <div className="h-10 w-10 rounded-xl flex items-center justify-center mb-4 bg-blue-500/10 text-blue-600">
-                        <Compass className="h-5 w-5" />
+                      <button
+                        onClick={() => handleEnrollCourse(selectedCourse)}
+                        className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-soft border ${
+                          isEnrolled
+                            ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100/50'
+                            : 'bg-[color:var(--brand-purple)] text-white border-transparent hover:opacity-90'
+                        }`}
+                      >
+                        {isEnrolled ? 'Desinscribirse del curso' : 'Inscribirse en el curso'}
+                      </button>
+                    </div>
+
+                    {/* Subaulas Grid (1 to 4) */}
+                    <div className="rounded-3xl border border-border/40 bg-white p-6 sm:p-8 shadow-card space-y-4">
+                      <div className="text-left">
+                        <h2 className="text-base font-extrabold text-foreground">Aulas del Curso (Secciones)</h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Para participar en grupos de aula, debes estar registrado en una de las secciones (Se permite máximo una sección por curso).
+                        </p>
                       </div>
-                      <h3 className="font-bold text-base text-foreground">Unirse a un grupo</h3>
-                      <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                        Únete a un grupo existente del curso {selectedCourse} y empieza a chatear y programar sesiones hoy mismo.
-                      </p>
-                    </div>
-                    <button 
-                      onClick={() => handleJoinGroup(`Grupo de ${selectedCourse}`)}
-                      className={`mt-6 w-full py-3 rounded-xl font-bold text-xs hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-                        joinedGroups.includes(`Grupo de ${selectedCourse}`)
-                          ? 'bg-green-600 text-white border-transparent'
-                          : 'bg-white text-foreground border-border hover:bg-muted'
-                      }`}
-                    >
-                      {joinedGroups.includes(`Grupo de ${selectedCourse}`) ? (
-                        <>
-                          <Check className="h-4.5 w-4.5" />
-                          <span>¡Te has unido!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Search className="h-4.5 w-4.5" />
-                          <span>Buscar grupos</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
 
-                </div>
-              </div>
+                      {!isEnrolled && (
+                        <div className="p-4 rounded-2xl bg-rose-50/40 border border-rose-100 text-center text-xs text-rose-500 font-bold flex items-center justify-center gap-2">
+                          <Lock className="h-4 w-4" />
+                          <span>Debes inscribirte en el curso arriba para poder seleccionar tu aula.</span>
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                        {[
+                          { key: 'Aula 1', label: 'Aula 101', count: 18 },
+                          { key: 'Aula 2', label: 'Aula 102', count: 14 },
+                          { key: 'Aula 3', label: 'Aula 103', count: 12 },
+                          { key: 'Aula 4', label: 'Aula 104', count: 16 }
+                        ].map((aulaObj) => {
+                          const isActive = currentAula === aulaObj.key;
+                          return (
+                            <div 
+                              key={aulaObj.key}
+                              className={`rounded-2xl border p-4 flex flex-col justify-between transition-all ${
+                                !isEnrolled 
+                                  ? 'border-border/40 bg-muted/20 opacity-50' 
+                                  : isActive
+                                    ? 'border-[color:var(--brand-green)] bg-[color:var(--brand-green)]/5 shadow-soft'
+                                    : 'border-border/60 bg-white hover:border-gray-300 hover:shadow-soft'
+                              }`}
+                            >
+                              <div className="text-left">
+                                <h3 className="font-extrabold text-sm text-foreground">{aulaObj.label}</h3>
+                                <p className="text-[10px] text-muted-foreground mt-1">{aulaObj.count} alumnos inscritos</p>
+                              </div>
+
+                              {isEnrolled && (
+                                <button
+                                  onClick={() => {
+                                    setUserSubaulas({
+                                      ...userSubaulas,
+                                      [selectedCourse]: aulaObj.key
+                                    });
+                                  }}
+                                  disabled={isActive}
+                                  className={`mt-4 w-full py-1.5 rounded-xl text-[10px] font-bold transition-all cursor-pointer text-center ${
+                                    isActive
+                                      ? 'bg-[color:var(--brand-green)] text-white border-transparent'
+                                      : 'border border-[color:var(--brand-purple)] text-[color:var(--brand-purple)] hover:bg-[color:var(--brand-purple)]/5 bg-transparent'
+                                  }`}
+                                >
+                                  {isActive ? 'Mi Aula' : currentAula ? 'Cambiar a esta Aula' : 'Ingresar a esta Aula'}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Study Groups in this Course */}
+                    <div className="space-y-6">
+                      <div className="flex justify-between items-center">
+                        <div className="text-left">
+                          <h2 className="text-xl font-extrabold text-foreground">Grupos de Estudio del Curso</h2>
+                          <p className="text-xs text-muted-foreground mt-0.5">Únete a grupos compartidos o de sección para colaborar.</p>
+                        </div>
+                        {isEnrolled && (
+                          <button 
+                            onClick={() => setShowCreateGroup(true)}
+                            className="px-4 py-2 rounded-xl bg-gradient-brand text-white text-xs font-semibold hover:opacity-90 flex items-center gap-1.5 shadow-soft hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer"
+                          >
+                            <Plus className="h-4.5 w-4.5" />
+                            <span>Crear grupo</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Grupos de Aula Section */}
+                        <div className="rounded-3xl border border-border/40 bg-white p-6 space-y-4 shadow-card">
+                          <div className="text-left">
+                            <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                              Grupos de Aula (Sección Exclusiva)
+                            </h3>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Solo alumnos en la sección correspondiente pueden unirse.</p>
+                          </div>
+
+                          {subaulaGroups.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-8 text-center bg-muted/20 rounded-2xl border border-dashed border-border/40">
+                              No hay grupos de aula creados en este curso.
+                            </p>
+                          ) : (
+                            <div className="space-y-3">
+                              {subaulaGroups.map((group) => {
+                                const isJoined = joinedGroups.includes(group.name);
+                                const restrictionError = getGroupRestrictionError(group);
+                                const aulaLabel = group.subaula === 'Aula 1' ? 'Aula 101' : (group.subaula === 'Aula 2' ? 'Aula 102' : (group.subaula === 'Aula 3' ? 'Aula 103' : 'Aula 104'));
+
+                                return (
+                                  <div key={group.id} className="rounded-xl border border-border/60 p-4 bg-white flex flex-col justify-between hover:shadow-soft transition-all text-left">
+                                    <div className="flex justify-between items-start gap-3">
+                                      <div>
+                                        <h4 className="font-bold text-xs text-foreground leading-tight">{group.name}</h4>
+                                        <p className="text-[10px] text-muted-foreground mt-1">Sección: <span className="font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-md text-[9px]">{aulaLabel}</span> • {group.members} miembros</p>
+                                        <p className="text-[11px] text-muted-foreground mt-2.5 leading-normal line-clamp-2">{group.description}</p>
+                                      </div>
+                                    </div>
+
+                                    {restrictionError && (
+                                      <p className="text-[9px] text-rose-500 font-bold mt-3.5 flex items-center gap-1 select-none bg-rose-50/50 p-2 rounded-lg border border-rose-100/60 leading-tight">
+                                        <Lock className="h-3 w-3 shrink-0" />
+                                        <span>{restrictionError}</span>
+                                      </p>
+                                    )}
+
+                                    <div className="mt-4 pt-3 border-t border-border/40 flex justify-between items-center gap-2">
+                                      <button
+                                        onClick={() => handleJoinGroup(group.name)}
+                                        disabled={!!restrictionError}
+                                        className={`flex-1 py-1.5 rounded-xl font-bold text-[10px] transition-all text-center ${
+                                          isJoined
+                                            ? 'border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 cursor-pointer'
+                                            : restrictionError
+                                              ? 'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
+                                              : 'border border-[color:var(--brand-blue)] text-[color:var(--brand-blue)] hover:bg-[color:var(--brand-blue)]/5 bg-transparent cursor-pointer'
+                                        }`}
+                                      >
+                                        {isJoined ? 'Salir' : 'Unirse'}
+                                      </button>
+
+                                      {isJoined && (
+                                        <button
+                                          onClick={() => handleOpenChat(group.name)}
+                                          className="px-3 py-1.5 rounded-xl bg-gradient-brand text-white font-bold text-[10px] hover:opacity-95 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-soft"
+                                        >
+                                          <MessageSquare className="h-3 w-3" />
+                                          <span>Chat</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Grupos Comunes Section */}
+                        <div className="rounded-3xl border border-border/40 bg-white p-6 space-y-4 shadow-card">
+                          <div className="text-left">
+                            <h3 className="text-sm font-extrabold text-foreground flex items-center gap-1.5">
+                              <span className="h-2 w-2 rounded-full bg-blue-500"></span>
+                              Grupos Comunes (Abiertos)
+                            </h3>
+                            <p className="text-[11px] text-muted-foreground mt-0.5">Cualquier alumno inscrito en el curso puede unirse libremente.</p>
+                          </div>
+
+                          {normalGroups.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-8 text-center bg-muted/20 rounded-2xl border border-dashed border-border/40">
+                              No hay grupos comunes creados para este curso.
+                            </p>
+                          ) : (
+                            <div className="space-y-3">
+                              {normalGroups.map((group) => {
+                                const isJoined = joinedGroups.includes(group.name);
+                                const restrictionError = getGroupRestrictionError(group);
+
+                                return (
+                                  <div key={group.id} className="rounded-xl border border-border/60 p-4 bg-white flex flex-col justify-between hover:shadow-soft transition-all text-left">
+                                    <div className="flex justify-between items-start gap-3">
+                                      <div>
+                                        <h4 className="font-bold text-xs text-foreground leading-tight">{group.name}</h4>
+                                        <p className="text-[10px] text-muted-foreground mt-1">Categoría: <span className="font-semibold text-blue-700 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-md text-[9px]">General</span> • {group.members} miembros</p>
+                                        <p className="text-[11px] text-muted-foreground mt-2.5 leading-normal line-clamp-2">{group.description}</p>
+                                      </div>
+                                    </div>
+
+                                    {restrictionError && (
+                                      <p className="text-[9px] text-rose-500 font-bold mt-3.5 flex items-center gap-1 select-none bg-rose-50/50 p-2 rounded-lg border border-rose-100/60 leading-tight">
+                                        <Lock className="h-3 w-3 shrink-0" />
+                                        <span>{restrictionError}</span>
+                                      </p>
+                                    )}
+
+                                    <div className="mt-4 pt-3 border-t border-border/40 flex justify-between items-center gap-2">
+                                      <button
+                                        onClick={() => handleJoinGroup(group.name)}
+                                        disabled={!!restrictionError}
+                                        className={`flex-1 py-1.5 rounded-xl font-bold text-[10px] transition-all text-center ${
+                                          isJoined
+                                            ? 'border border-red-200 text-red-600 bg-red-50/50 hover:bg-red-50 cursor-pointer'
+                                            : restrictionError
+                                              ? 'border border-gray-200 text-gray-400 bg-gray-50 cursor-not-allowed opacity-60'
+                                              : 'border border-[color:var(--brand-blue)] text-[color:var(--brand-blue)] hover:bg-[color:var(--brand-blue)]/5 bg-transparent cursor-pointer'
+                                        }`}
+                                      >
+                                        {isJoined ? 'Salir' : 'Unirse'}
+                                      </button>
+
+                                      {isJoined && (
+                                        <button
+                                          onClick={() => handleOpenChat(group.name)}
+                                          className="px-3 py-1.5 rounded-xl bg-gradient-brand text-white font-bold text-[10px] hover:opacity-95 transition-all cursor-pointer flex items-center justify-center gap-1 shadow-soft"
+                                        >
+                                          <MessageSquare className="h-3 w-3" />
+                                          <span>Chat</span>
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -1423,6 +1770,139 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
           )}
 
+          {/* VIEW: COMUNIDAD Y CALIFICACIONES (OUTSIDE CHAT MODAL, ANONYMOUS SYSTEM) */}
+          {activeTab === 'comunidad' && (
+            <div className="space-y-6 animate-in fade-in-50 duration-200">
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Compañeros de UTEC</h1>
+                <p className="text-xs text-muted-foreground mt-1">Califica de forma 100% anónima la colaboración y aporte académico de otros estudiantes.</p>
+              </div>
+
+              {/* Search Bar for members */}
+              <div className="relative max-w-md">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <input 
+                  value={communitySearch}
+                  onChange={(e) => setCommunitySearch(e.target.value)}
+                  placeholder="Buscar compañeros por nombre o carrera..." 
+                  className="w-full pl-11 pr-4 py-2.5 rounded-xl bg-white border border-border focus:border-[color:var(--brand-purple)] focus:outline-none text-xs shadow-soft" 
+                  type="text" 
+                />
+              </div>
+
+              {loadingCommunity ? (
+                <div className="flex flex-col items-center justify-center py-16 space-y-3">
+                  <Loader2 className="h-8 w-8 animate-spin text-[color:var(--brand-purple)]" />
+                  <span className="text-xs font-medium text-muted-foreground">Cargando compañeros...</span>
+                </div>
+              ) : filteredCommunity.length === 0 ? (
+                <div className="rounded-3xl border border-border bg-white p-12 text-center max-w-xl mx-auto shadow-soft flex flex-col items-center justify-center animate-in fade-in duration-200">
+                  <div className="h-14 w-14 rounded-full bg-rose-50 border border-rose-100 flex items-center justify-center mb-4">
+                    <Users className="h-7 w-7 text-rose-500 animate-pulse" />
+                  </div>
+                  <h3 className="font-extrabold text-sm text-foreground">No tienes compañeros visibles</h3>
+                  <p className="text-xs text-muted-foreground mt-2 max-w-sm leading-relaxed">
+                    Solo puedes ver a los estudiantes con quienes compartes al menos un grupo de estudio. Únete a un grupo en la sección de grupos o de cursos para interactuar con tus compañeros.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                  {filteredCommunity.map((member) => {
+                    const memberGroups = getMemberGroups(member.username);
+
+                    return (
+                      <div 
+                        key={member.id || member.username}
+                        className="rounded-3xl border border-border/60 bg-white p-6 shadow-card hover:shadow-soft hover:border-gray-300 transition-all flex flex-col justify-between"
+                      >
+                        <div>
+                          <div className="flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-full bg-gradient-brand flex items-center justify-center text-white text-sm font-extrabold shadow-soft select-none shrink-0">
+                              {getInitials(member.username)}
+                            </div>
+                            <div className="min-w-0">
+                              <h3 className="font-extrabold text-xs text-foreground truncate">{formatName(member.username)}</h3>
+                              <p className="text-[10px] text-muted-foreground truncate">{member.email}</p>
+                            </div>
+                          </div>
+
+                          <div className="mt-4 space-y-2.5 pt-3 border-t border-border/40 text-[11px]">
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground font-medium">Carrera:</span>
+                              <span className="font-semibold text-foreground truncate max-w-[150px]">{member.career || 'No especificada'}</span>
+                            </div>
+
+                            <div className="flex justify-between items-start gap-2">
+                              <span className="text-muted-foreground font-medium shrink-0">Grupos de Estudio:</span>
+                              <div className="text-right flex flex-wrap gap-1 justify-end max-w-[160px]">
+                                {memberGroups.map(gName => {
+                                  const userIsJoined = joinedGroups.includes(gName);
+                                  return (
+                                    <span 
+                                      key={gName} 
+                                      className={`inline-block text-[9px] px-1.5 py-0.5 rounded-md border font-semibold ${
+                                        userIsJoined 
+                                          ? 'bg-green-50 text-green-700 border-green-200 shadow-xs' 
+                                          : 'bg-muted/60 text-muted-foreground border-border/40'
+                                      }`}
+                                      title={userIsJoined ? 'Grupo compartido' : 'Grupo de este compañero'}
+                                    >
+                                      {gName.replace('Grupo de ', '')}
+                                    </span>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center">
+                              <span className="text-muted-foreground font-medium">Calificación Promedio:</span>
+                              <div className="flex items-center gap-1 font-semibold text-foreground">
+                                <Star className="h-3.5 w-3.5 text-amber-400 fill-amber-400 shrink-0" />
+                                <span>{member.averageRating ? member.averageRating.toFixed(1) : '0.0'}</span>
+                                <span className="text-[9px] text-muted-foreground">({member.ratingCount || 0} calificaciones)</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="mt-6 pt-3 border-t border-border/40">
+                          <div className="space-y-2">
+                            <div className="flex justify-between items-center text-[10px]">
+                              <span className="text-muted-foreground font-bold">Tu calificación (Anónima):</span>
+                              <span className="text-green-600 font-bold bg-green-50 px-2 py-0.5 rounded-full border border-green-100 flex items-center gap-1 select-none text-[9px]">
+                                <span className="h-1 w-1 rounded-full bg-green-500"></span>
+                                Grupo compartido
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-1 animate-in slide-in-from-bottom-2 duration-250">
+                              {[1, 2, 3, 4, 5].map((star) => {
+                                const filled = star <= (member.userRating || 0);
+                                return (
+                                  <button
+                                    key={star}
+                                    type="button"
+                                    onClick={() => handleRateCommunityUser(member.id, star)}
+                                    className={`p-0.5 hover:scale-125 active:scale-95 transition-all cursor-pointer bg-transparent border-none ${
+                                      filled ? 'text-amber-400' : 'text-gray-300 hover:text-amber-300'
+                                    }`}
+                                    title={`Calificar con ${star} estrellas`}
+                                  >
+                                    <Star className={`h-5 w-5 ${filled ? 'fill-amber-400' : 'fill-transparent'}`} />
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* VIEW: MIS CURSOS (DEDICATED PAGE FROM LEFT SIDEBAR) */}
           {activeTab === 'cursos' && (
             <div className="space-y-6 animate-in fade-in-50 duration-200">
@@ -1469,6 +1949,26 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                           </div>
                           <h4 className="font-bold text-sm text-foreground leading-snug group-hover:text-[color:var(--brand-purple)] transition-colors">{courseName}</h4>
                           <p className="text-[10px] font-medium text-muted-foreground mt-1">{course.area}</p>
+
+                          <div className="mt-3 pt-3 border-t border-border/40 text-[10px] space-y-1">
+                            <label className="block text-muted-foreground font-bold text-[9px] uppercase tracking-wider text-left">Subaula / Sección:</label>
+                            <select
+                              value={userSubaulas[courseName] || 'Aula 1'}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                setUserSubaulas({
+                                  ...userSubaulas,
+                                  [courseName]: e.target.value
+                                });
+                              }}
+                              className="w-full bg-muted/60 hover:bg-muted border border-border/40 rounded-lg px-2.5 py-1.5 font-bold text-foreground text-[10px] focus:outline-none transition cursor-pointer"
+                            >
+                              <option value="Aula 1">Aula 101</option>
+                              <option value="Aula 2">Aula 102</option>
+                              <option value="Aula 3">Aula 103</option>
+                              <option value="Aula 4">Aula 104</option>
+                            </select>
+                          </div>
                         </div>
 
                         <div className="mt-6 flex flex-col gap-2">
@@ -1539,9 +2039,20 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                       <div>
                         <div className="flex justify-between items-start gap-4">
                           <h3 className="font-extrabold text-base text-foreground">{group.name}</h3>
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 bg-[color:var(--brand-purple)]/10 text-[color:var(--brand-purple)]">
-                            {group.courseName}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+                            <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[color:var(--brand-purple)]/10 text-[color:var(--brand-purple)]">
+                              {group.courseName}
+                            </span>
+                            {group.type === 'subaula' ? (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200/50">
+                                {group.subaula === 'Aula 1' ? 'Aula 101' : (group.subaula === 'Aula 2' ? 'Aula 102' : 'Aula 103')}
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/50">
+                                Grupo Común
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">{group.members} miembros activos</p>
                         <p className="text-xs text-muted-foreground mt-4 leading-relaxed">{group.description}</p>
@@ -1724,6 +2235,54 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1.5">
+                  Tipo de Grupo
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNewGroupType('normal')}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      newGroupType === 'normal'
+                        ? 'border-[color:var(--brand-purple)] bg-[color:var(--brand-purple)]/5 text-[color:var(--brand-purple)] font-extrabold'
+                        : 'border-border text-muted-foreground bg-white hover:bg-muted'
+                    }`}
+                  >
+                    Normal (Abierto)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewGroupType('subaula')}
+                    className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      newGroupType === 'subaula'
+                        ? 'border-[color:var(--brand-purple)] bg-[color:var(--brand-purple)]/5 text-[color:var(--brand-purple)] font-extrabold'
+                        : 'border-border text-muted-foreground bg-white hover:bg-muted'
+                    }`}
+                  >
+                    De Subaula (Exclusivo)
+                  </button>
+                </div>
+              </div>
+
+              {newGroupType === 'subaula' && (
+                <div className="animate-in slide-in-from-top-1.5 duration-200">
+                  <label className="block text-xs font-semibold text-foreground mb-1.5">
+                    Seleccionar Aula Exclusiva
+                  </label>
+                  <select
+                    value={newGroupSubaula}
+                    onChange={(e) => setNewGroupSubaula(e.target.value)}
+                    className="w-full rounded-xl border border-border px-4 py-2.5 text-xs bg-white focus:outline-none focus:border-[color:var(--brand-purple)] font-medium"
+                  >
+                    <option value="Aula 1">Aula 101</option>
+                    <option value="Aula 2">Aula 102</option>
+                    <option value="Aula 3">Aula 103</option>
+                    <option value="Aula 4">Aula 104</option>
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-foreground mb-1.5">
                   Descripción (Opcional)
                 </label>
                 <textarea
@@ -1741,6 +2300,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     setShowCreateGroup(false);
                     setNewGroupName('');
                     setNewGroupDesc('');
+                    setNewGroupType('normal');
+                    setNewGroupSubaula('Aula 1');
                   }}
                   className="rounded-xl border border-border text-xs font-semibold px-4 py-2 hover:bg-muted active:scale-95 transition-all cursor-pointer text-foreground bg-white"
                 >
@@ -1857,26 +2418,36 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
             {/* Chat Messages Area with beautiful bubbles */}
             <div className="flex-1 p-5 overflow-y-auto space-y-4 min-h-[300px] max-h-[450px] bg-muted/20">
-              {chatMessages.map((msg) => (
-                <div 
-                  key={msg.id}
-                  className={`flex flex-col max-w-[80%] ${msg.isMe ? 'ml-auto items-end' : 'items-start'}`}
-                >
-                  <span className="text-[10px] font-semibold text-muted-foreground mb-1 pl-1 select-none">
-                    {msg.sender} • {msg.time}
-                  </span>
-                  <div 
-                    className="rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-soft"
-                    style={{ 
-                      backgroundColor: msg.isMe ? 'var(--brand-orange)' : '#ffffff', 
-                      color: msg.isMe ? '#ffffff' : 'var(--foreground)', 
-                      border: msg.isMe ? 'none' : '1px solid #e4e4e7' 
-                    }}
-                  >
-                    {msg.text}
-                  </div>
+              {chatMessages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
+                  <MessageCircle className="h-10 w-10 text-muted-foreground/45 mb-2 animate-bounce" />
+                  <p className="text-xs font-bold text-foreground">¡Comienza la conversación!</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 max-w-[240px] leading-relaxed">
+                    Escribe un mensaje aquí para saludar e iniciar el estudio colaborativo con tus compañeros.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                chatMessages.map((msg) => (
+                  <div 
+                    key={msg.id}
+                    className={`flex flex-col max-w-[80%] ${msg.isMe ? 'ml-auto items-end' : 'items-start'}`}
+                  >
+                    <span className="text-[10px] font-semibold text-muted-foreground mb-1 pl-1 select-none">
+                      {msg.sender} • {msg.time}
+                    </span>
+                    <div 
+                      className="rounded-2xl px-4 py-2.5 text-xs leading-relaxed shadow-soft"
+                      style={{ 
+                        backgroundColor: msg.isMe ? 'var(--brand-orange)' : '#ffffff', 
+                        color: msg.isMe ? '#ffffff' : 'var(--foreground)', 
+                        border: msg.isMe ? 'none' : '1px solid #e4e4e7' 
+                      }}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
 
             {/* Input form */}
