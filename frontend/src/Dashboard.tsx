@@ -80,12 +80,27 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [newGroupType, setNewGroupType] = useState<'normal' | 'subaula'>('normal');
   const [newGroupSubaula, setNewGroupSubaula] = useState<string>('Aula 1');
 
-  const [userSubaulas, setUserSubaulas] = useState<Record<string, string>>({
-    'Cálculo I': 'Aula 1',
-    'Programming Fundamentals': 'Aula 2'
+  const [userSubaulas, setUserSubaulas] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('userSubaulas');
+    return saved ? JSON.parse(saved) : {
+      'Cálculo I': 'Aula 1',
+      'Programming Fundamentals': 'Aula 2'
+    };
   });
 
-  const [joinedGroups, setJoinedGroups] = useState<string[]>(['Grupo de Repaso Cálculo 1']);
+  const [joinedGroups, setJoinedGroups] = useState<string[]>(() => {
+    const saved = localStorage.getItem('joinedGroups');
+    return saved ? JSON.parse(saved) : ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)'];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('userSubaulas', JSON.stringify(userSubaulas));
+  }, [userSubaulas]);
+
+  useEffect(() => {
+    localStorage.setItem('joinedGroups', JSON.stringify(joinedGroups));
+  }, [joinedGroups]);
+
   const [availableGroups, setAvailableGroups] = useState<Group[]>([
     { id: '1', name: 'Grupo de Repaso Cálculo 1', courseName: 'Cálculo I', members: 4, description: 'Estudiamos los fines de semana límites y derivadas.', type: 'normal' },
     { id: '2', name: 'Aula 1 - Cálculo 1 (Exclusivo)', courseName: 'Cálculo I', members: 3, description: 'Grupo de trabajo exclusivo para alumnos del Aula 101 de Cálculo I.', type: 'subaula', subaula: 'Aula 1' },
@@ -120,7 +135,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [newMessageText, setNewMessageText] = useState<string>('');
 
   // User profile state for Step 7
-  const [userProfile, setUserProfile] = useState<{ username: string; email: string; role: string; career: string | null } | null>(null);
+  const [userProfile, setUserProfile] = useState<{ 
+    username: string; 
+    email: string; 
+    role: string; 
+    career: string | null;
+    averageRating?: number;
+    ratingCount?: number;
+  } | null>(null);
   const [selectedCareer, setSelectedCareer] = useState<string>('');
   const [loadingProfile, setLoadingProfile] = useState<boolean>(false);
   const [savingProfile, setSavingProfile] = useState<boolean>(false);
@@ -154,13 +176,47 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   useEffect(() => {
     if (activeTab === 'comunidad') {
       loadCommunityUsers();
+    } else if (activeTab === 'perfil') {
+      const loadProfileOnly = async () => {
+        try {
+          const profileResponse = await api.get('/users/profile');
+          if (profileResponse.data) {
+            setUserProfile(profileResponse.data);
+            setSelectedCareer(profileResponse.data.career || '');
+            setEnrolledCourses(profileResponse.data.enrolledCourses || []);
+          }
+        } catch (err) {
+          console.error('Error reloading profile on tab switch:', err);
+        }
+      };
+      loadProfileOnly();
     }
   }, [activeTab]);
 
   const handleRateCommunityUser = async (userId: number, stars: number) => {
+    const member = communityUsers.find(u => u.id === userId);
+    if (!member) return;
+
+    const memberGroups = getMemberGroups(member.username);
+    const sharesSubaula = joinedGroups.some(gName => {
+      if (!memberGroups.includes(gName)) return false;
+      const grp = availableGroups.find(g => g.name === gName);
+      return grp?.type === 'subaula';
+    });
+
+    if (!sharesSubaula) {
+      alert('Solo puedes calificar a compañeros con los que compartas un grupo de aula.');
+      return;
+    }
+
     try {
       await api.post(`/users/${userId}/rate`, { stars });
       loadCommunityUsers();
+      // Reload profile after rating so that stats update
+      const profileResponse = await api.get('/users/profile');
+      if (profileResponse.data) {
+        setUserProfile(profileResponse.data);
+      }
     } catch (err: any) {
       console.error('Error submitting rating:', err);
       alert(err.response?.data?.message || 'No se pudo guardar la calificación.');
@@ -332,23 +388,23 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const getMemberGroups = (username: string): string[] => {
     const normalized = username.toLowerCase().trim();
     if (normalized.includes('diego')) {
-      return ['Grupo de Repaso Cálculo 1', 'Grupo de Programación Web', 'Grupo de Diseño Curricular'];
+      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Grupo de Programación Web', 'Grupo de Diseño Curricular'];
     } else if (normalized.includes('mateo')) {
-      return ['Grupo de Matemáticas Aplicadas', 'Grupo de Programación Web', 'Grupo de Educación y Sociedad'];
+      return ['Grupo de Matemáticas Aplicadas', 'Grupo de Programación Web', 'Aula 2 - Prog. Web (Exclusivo)', 'Grupo de Educación y Sociedad'];
     } else if (normalized.includes('lucía') || normalized.includes('lucia')) {
-      return ['Grupo de Repaso Cálculo 1', 'Grupo de Matemáticas Aplicadas', 'Grupo de Física General'];
+      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Grupo de Matemáticas Aplicadas', 'Aula 1 - Física General (Exclusivo)'];
     }
     
     // Fallback based on career for other dynamically loaded users
     const member = communityUsers.find(u => u.username === username);
     const career = member?.career || '';
     if (career.includes('Computación') || career.includes('Sistemas')) {
-      return ['Grupo de Programación Web', 'Grupo de Diseño Curricular'];
+      return ['Grupo de Programación Web', 'Aula 2 - Prog. Web (Exclusivo)', 'Grupo de Diseño Curricular'];
     } else if (career.includes('Civil') || career.includes('Ambiental') || career.includes('Energía')) {
-      return ['Grupo de Repaso Cálculo 1', 'Grupo de Física General', 'Grupo de Matemáticas Aplicadas'];
+      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Aula 1 - Física General (Exclusivo)', 'Grupo de Matemáticas Aplicadas'];
     }
     
-    return ['Grupo de Repaso Cálculo 1'];
+    return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)'];
   };
 
   const getGroupRestrictionError = (group: Group): string | null => {
@@ -524,11 +580,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     course.area.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Filter UTEC classmates: only show students with whom the user shares at least one group (Team)
+  // Filter UTEC classmates: only show students with whom the user shares at least one classroom group (grupo de aula/subaula)
   const filteredCommunity = communityUsers.filter(u => {
     if (u.username === user.username) return false; // Exclude current user from rating classmates list
     const memberGroups = getMemberGroups(u.username);
-    return joinedGroups.some(g => memberGroups.includes(g));
+    // Only show user if they share at least one classroom group (grupo de aula/subaula)
+    return joinedGroups.some(gName => {
+      if (!memberGroups.includes(gName)) return false;
+      const grp = availableGroups.find(g => g.name === gName);
+      return grp?.type === 'subaula';
+    });
   }).filter(u => 
     u.username.toLowerCase().includes(communitySearch.toLowerCase()) || 
     (u.career && u.career.toLowerCase().includes(communitySearch.toLowerCase()))
@@ -2163,6 +2224,51 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     {userProfile?.role === 'ROLE_ADMIN' ? 'Administrador' : 
                      userProfile?.role === 'ROLE_ORGANIZER' ? 'Organizador' : 'Estudiante Autorizado (UTEC)'}
                   </span>
+                </div>
+
+                <div className="rounded-xl p-4 text-xs border border-border/60 bg-muted/40 text-muted-foreground flex flex-col gap-3 shadow-soft">
+                  <div className="flex justify-between items-center w-full">
+                    <span className="flex items-center gap-1.5 font-medium">
+                      <Star className="h-4 w-4 text-amber-500 fill-amber-500" />
+                      Calificación (Co-evaluación):
+                    </span>
+                    {userProfile && userProfile.ratingCount !== undefined && userProfile.ratingCount >= 3 ? (
+                      <span className="font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full border border-amber-100 flex items-center gap-1">
+                        {userProfile.averageRating ? userProfile.averageRating.toFixed(1) : '0.0'} ★
+                      </span>
+                    ) : (
+                      <span className="font-bold text-gray-500 bg-gray-50 px-2.5 py-0.5 rounded-full border border-gray-200">
+                        No disponible
+                      </span>
+                    )}
+                  </div>
+                  
+                  {userProfile && userProfile.ratingCount !== undefined && userProfile.ratingCount >= 3 ? (
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="flex items-center gap-0.5">
+                        {[1, 2, 3, 4, 5].map((star) => {
+                          const rating = userProfile.averageRating || 0;
+                          const filled = star <= Math.round(rating);
+                          return (
+                            <Star 
+                              key={star} 
+                              className={`h-4 w-4 ${filled ? 'text-amber-400 fill-amber-400' : 'text-gray-300 fill-transparent'}`} 
+                            />
+                          );
+                        })}
+                      </div>
+                      <span className="text-[10px] text-muted-foreground">
+                        Basado en {userProfile.ratingCount} calificaciones.
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">
+                      No tiene suficientes calificaciones
+                      <span className="block mt-1 font-normal text-muted-foreground/85">
+                        (Necesitas al menos 3 calificaciones de compañeros con quienes compartas grupos de aula).
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 <button
