@@ -68,7 +68,50 @@ interface Booking {
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<string>('inicio');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [notificationCount, setNotificationCount] = useState<number>(3);
+  const [showNotifications, setShowNotifications] = useState<boolean>(false);
+  const [showChatDropdown, setShowChatDropdown] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<Array<{
+    id: string;
+    type: 'reserva' | 'mensaje';
+    title: string;
+    description: string;
+    time: string;
+    read: boolean;
+  }>>([
+    {
+      id: 'n1',
+      type: 'reserva',
+      title: 'Reserva de Aula',
+      description: 'Diego Alva reservó el Cubículo A-203 para tu grupo Aula 1 - Cálculo 1 (Exclusivo).',
+      time: 'Hace 5 min',
+      read: false
+    },
+    {
+      id: 'n2',
+      type: 'mensaje',
+      title: 'Mensaje Recibido',
+      description: 'Mateo Rojas en Aula 2 - Prog. Web (Exclusivo): "¿Traemos las laptops cargadas?"',
+      time: 'Hace 20 min',
+      read: false
+    },
+    {
+      id: 'n3',
+      type: 'reserva',
+      title: 'Reserva de Equipos',
+      description: 'Lucía Méndez reservó un Kit de Sensores IoT para tu grupo Aula 1 - Física General (Exclusivo).',
+      time: 'Hace 2 horas',
+      read: false
+    },
+    {
+      id: 'n4',
+      type: 'mensaje',
+      title: 'Mensaje de Grupo',
+      description: 'Diego Alva en Aula 1 - Cálculo 1 (Exclusivo): "Compartí la pizarra digital con los apuntes."',
+      time: 'Hace 1 día',
+      read: true
+    }
+  ]);
+  const unreadCount = notifications.filter(n => !n.read).length;
   
   // Selected course for Step 4
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
@@ -246,8 +289,44 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       isMe: true
     };
 
-    setChatMessages([...chatMessages, myMessage]);
+    setChatMessages(prev => [...prev, myMessage]);
+    const replyGroup = activeChatGroup;
     setNewMessageText('');
+
+    // Simulate teammates replying after 1.5 seconds
+    setTimeout(() => {
+      const responses = [
+        "¡Excelente! Estoy de acuerdo con la propuesta.",
+        "Dale, yo me encargo de coordinar con el grupo.",
+        "Quedamos en eso entonces. Nos vemos en la sesión de estudio.",
+        "¿Podríamos reunirnos media hora antes para avanzar?",
+        "Entendido. Yo avanzo con la presentación del proyecto."
+      ];
+      const randomReply = responses[Math.floor(Math.random() * responses.length)];
+      const names = ["Diego Alva", "Mateo Rojas", "Lucía Méndez"];
+      const randomSender = names[Math.floor(Math.random() * names.length)];
+      
+      const teammateMessage: ChatMessage = {
+        id: String(Date.now() + 1),
+        sender: randomSender,
+        text: randomReply,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        isMe: false
+      };
+      
+      setChatMessages(prev => [...prev, teammateMessage]);
+
+      // Add to notification panel
+      const newMsgNotif = {
+        id: 'notif-msg-' + Date.now(),
+        type: 'mensaje' as const,
+        title: `Nuevo mensaje de ${randomSender}`,
+        description: `En chat "${replyGroup}": "${randomReply}"`,
+        time: 'Ahora mismo',
+        read: false
+      };
+      setNotifications(prev => [newMsgNotif, ...prev]);
+    }, 1500);
   };
 
   // Fetch teams and bookings from Spring Boot backend on mount
@@ -455,6 +534,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     e.preventDefault();
     if (!newGroupName.trim()) return;
 
+    if (newGroupType === 'subaula') {
+      const userAula = selectedCourse ? userSubaulas[selectedCourse] : null;
+      if (!userAula) {
+        alert("Error: No puedes crear un grupo de aula si no tienes una sección asignada para este curso.");
+        return;
+      }
+      if (newGroupSubaula !== userAula) {
+        alert("Error: Solo puedes crear grupos de aula para tu sección asignada.");
+        return;
+      }
+    }
+
     const newGroupMock: Group = {
       id: String(Date.now()),
       name: newGroupName.trim(),
@@ -574,6 +665,17 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       console.warn('Backend server not running. Reserving in local state only.', err);
       setBookings([bookingMock, ...bookings]);
     }
+
+    // Add dynamic notification for the reservation
+    const newNotif = {
+      id: 'notif-reserva-' + Date.now(),
+      type: 'reserva' as const,
+      title: 'Reserva de Espacio',
+      description: `Reservaste el espacio ${reserveSpaceCode} para tu grupo ${reserveSubaulaGroup}.`,
+      time: 'Ahora mismo',
+      read: false
+    };
+    setNotifications(prev => [newNotif, ...prev]);
 
     setTimeout(() => {
       setReservationSuccess(false);
@@ -827,26 +929,150 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               <Users className="h-5 w-5" />
             </button>
             
-            <button 
-              onClick={() => handleOpenChat('Grupo de Cálculo I')}
-              className="h-10 w-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"
-              title="Chat grupal activo"
-            >
-              <MessageSquare className="h-5 w-5" />
-            </button>
-            
-            <button 
-              onClick={() => setNotificationCount(0)}
-              className="relative h-10 w-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"
-              title="Notificaciones"
-            >
-              <Bell className="h-5 w-5" />
-              {notificationCount > 0 && (
-                <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-[color:var(--brand-purple)] text-white text-[10px] font-bold flex items-center justify-center">
-                  {notificationCount}
-                </span>
+            <div className="relative">
+              <button 
+                onClick={() => setShowChatDropdown(!showChatDropdown)}
+                className="h-10 w-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"
+                title="Chats grupales"
+              >
+                <MessageSquare className="h-5 w-5" />
+              </button>
+              
+              {showChatDropdown && (
+                <div className="absolute right-0 mt-2 w-72 rounded-2xl border border-border/80 bg-white p-4 shadow-xl z-50 animate-in slide-in-from-top-2 duration-200 text-left">
+                  {/* Header */}
+                  <div className="flex justify-between items-center pb-2 border-b border-border/40 mb-3">
+                    <span className="font-bold text-xs text-foreground">Mis Chats Grupales</span>
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-green-50 text-green-600 border border-green-100">
+                      {joinedGroups.length} activos
+                    </span>
+                  </div>
+
+                  {/* Body list */}
+                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                    {joinedGroups.length === 0 ? (
+                      <div className="text-center py-6 text-muted-foreground text-[11px] italic">
+                        No te has unido a ningún grupo
+                      </div>
+                    ) : (
+                      joinedGroups.map((gName) => {
+                        const isSubaula = availableGroups.find(g => g.name === gName)?.type === 'subaula';
+                        return (
+                          <div 
+                            key={gName}
+                            className="p-2 rounded-xl border border-border/40 hover:bg-muted/30 flex items-center justify-between gap-3 transition-all"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <p className="font-bold text-[11px] text-foreground truncate">{gName}</p>
+                              <span className={`inline-block text-[8px] font-semibold px-1.5 py-0.5 rounded-md ${
+                                isSubaula 
+                                  ? 'bg-purple-50 text-purple-600 border border-purple-100' 
+                                  : 'bg-orange-50 text-orange-600 border border-orange-100'
+                              }`}>
+                                {isSubaula ? 'Aula' : 'Estudio'}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                handleOpenChat(gName);
+                                setShowChatDropdown(false);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-gradient-brand text-white text-[10px] font-bold hover:opacity-90 active:scale-95 transition-all cursor-pointer shrink-0"
+                            >
+                              Entrar
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
               )}
-            </button>
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => {
+                  if (!showNotifications) {
+                    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                  }
+                  setShowNotifications(!showNotifications);
+                }}
+                className="relative h-10 w-10 rounded-xl hover:bg-muted flex items-center justify-center text-muted-foreground"
+                title="Notificaciones"
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-[color:var(--brand-purple)] text-white text-[10px] font-bold flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              
+              {showNotifications && (
+                <div className="absolute right-0 mt-2 w-85 rounded-2xl border border-border/80 bg-white p-4 shadow-xl z-50 animate-in slide-in-from-top-2 duration-200 text-left">
+                  {/* Header */}
+                  <div className="flex justify-between items-center pb-2 border-b border-border/40">
+                    <span className="font-bold text-xs text-foreground">Notificaciones</span>
+                    {notifications.length > 0 && (
+                      <button 
+                        onClick={() => setNotifications([])}
+                        className="text-[10px] font-semibold text-rose-500 hover:underline bg-transparent border-none cursor-pointer"
+                      >
+                        Limpiar todo
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Body list */}
+                  <div className="mt-3 space-y-3 max-h-72 overflow-y-auto pr-1">
+                    {notifications.length === 0 ? (
+                      <div className="text-center py-6 text-muted-foreground text-[11px] italic">
+                        No tienes notificaciones
+                      </div>
+                    ) : (
+                      notifications.map((n) => {
+                        const Icon = n.type === 'reserva' ? Calendar : MessageSquare;
+                        const iconBg = n.type === 'reserva' ? 'bg-orange-50 text-orange-500 border border-orange-100' : 'bg-blue-50 text-blue-500 border border-blue-100';
+                        return (
+                          <div 
+                            key={n.id}
+                            className={`p-2.5 rounded-xl border flex gap-3 items-start transition-all relative ${
+                              n.read ? 'bg-white border-border/40' : 'bg-purple-50/20 border-[color:var(--brand-purple)]/30'
+                            }`}
+                          >
+                            <div className={`h-8 w-8 rounded-lg flex items-center justify-center shrink-0 ${iconBg}`}>
+                              <Icon className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex justify-between items-baseline gap-1">
+                                <span className="font-bold text-[11px] text-foreground truncate">{n.title}</span>
+                                <span className="text-[9px] text-muted-foreground shrink-0">{n.time}</span>
+                              </div>
+                              <p className="text-[10px] text-muted-foreground leading-normal mt-0.5 break-words">
+                                {n.description}
+                              </p>
+                            </div>
+                            
+                            {/* Close / Dismiss button */}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setNotifications(prev => prev.filter(item => item.id !== n.id));
+                              }}
+                              className="text-muted-foreground hover:text-foreground hover:scale-115 transition-all text-xs bg-transparent border-none cursor-pointer shrink-0 ml-1"
+                              title="Descartar"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
             
             <div className="h-10 w-10 rounded-full bg-gradient-brand flex items-center justify-center text-white font-semibold text-sm select-none">
               {getInitials(user.username)}
@@ -1732,13 +1958,13 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
           )}
 
-          {/* VIEW: HISTORIAL Y PENALIZACIONES (STEP 6) */}
+          {/* VIEW: HISTORIAL DE RESERVAS */}
           {activeTab === 'historial' && (
             <div className="max-w-3xl mx-auto space-y-6">
               
               <div>
                 <h1 className="text-2xl font-extrabold tracking-tight text-foreground">Reservas y Asistencia</h1>
-                <p className="text-xs text-muted-foreground mt-1">Monitorea tus reservas activas e historial de cumplimiento académico.</p>
+                <p className="text-xs text-muted-foreground mt-1">Monitorea tus reservas activas e historial de reservas anteriores.</p>
               </div>
 
               {/* Tabs Section matching prototype */}
@@ -1774,7 +2000,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                         : 'border-transparent text-muted-foreground hover:text-foreground'
                     }`}
                   >
-                    Canceladas (Faltas)
+                    Canceladas
                   </button>
                 </div>
 
@@ -1786,8 +2012,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                         key={booking.id}
                         className="rounded-2xl border border-border/60 p-5 relative overflow-hidden animate-in fade-in-0 duration-200 bg-white shadow-soft"
                       >
-                        {/* Red warning border on left */}
-                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-red-600"></div>
+                        {/* Gray border on left */}
+                        <div className="absolute left-0 top-0 bottom-0 w-1.5 bg-gray-300"></div>
 
                         <div className="flex justify-between items-start gap-4 pl-2">
                           <div>
@@ -1806,20 +2032,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                             </div>
                           </div>
 
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-600 shrink-0 border border-red-100">
-                            No asistió
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-50 text-gray-600 shrink-0 border border-gray-200">
+                            Cancelada
                           </span>
-                        </div>
-
-                        {/* Coevaluation Penalization Alert Box matching Step 6 */}
-                        <div className="mt-5 flex gap-3 rounded-xl border p-4 bg-red-50/50 border-red-200/60">
-                          <AlertTriangle className="h-5 w-5 text-red-500 shrink-0 mt-0.5" />
-                          <div className="text-xs leading-relaxed">
-                            <p className="font-bold text-red-600">Penalización aplicada</p>
-                            <p className="mt-0.5 text-muted-foreground">
-                              No asististe a la reserva sin justificación válida. Se aplicó una penalización automática equivalente al <strong className="text-foreground">20% de tu calificación final de coevaluación</strong>.
-                            </p>
-                          </div>
                         </div>
                       </div>
                     ))}
@@ -2387,7 +2602,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setNewGroupType('subaula')}
+                    onClick={() => {
+                      const userAula = selectedCourse ? userSubaulas[selectedCourse] : null;
+                      if (!userAula) {
+                        alert("No puedes crear un grupo de aula si no estás en una sección/aula de este curso. Primero debes inscribirte en un aula en la sección 'Mis Cursos'.");
+                        return;
+                      }
+                      setNewGroupType('subaula');
+                      setNewGroupSubaula(userAula);
+                    }}
                     className={`py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                       newGroupType === 'subaula'
                         ? 'border-[color:var(--brand-purple)] bg-[color:var(--brand-purple)]/5 text-[color:var(--brand-purple)] font-extrabold'
@@ -2400,20 +2623,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               </div>
 
               {newGroupType === 'subaula' && (
-                <div className="animate-in slide-in-from-top-1.5 duration-200">
-                  <label className="block text-xs font-semibold text-foreground mb-1.5">
-                    Seleccionar Aula Exclusiva
-                  </label>
-                  <select
-                    value={newGroupSubaula}
-                    onChange={(e) => setNewGroupSubaula(e.target.value)}
-                    className="w-full rounded-xl border border-border px-4 py-2.5 text-xs bg-white focus:outline-none focus:border-[color:var(--brand-purple)] font-medium"
-                  >
-                    <option value="Aula 1">Aula 101</option>
-                    <option value="Aula 2">Aula 102</option>
-                    <option value="Aula 3">Aula 103</option>
-                    <option value="Aula 4">Aula 104</option>
-                  </select>
+                <div className="animate-in slide-in-from-top-1.5 duration-200 bg-purple-50 border border-purple-200 p-3.5 rounded-xl text-xs text-purple-700 leading-normal">
+                  <span className="font-bold flex items-center gap-1.5 mb-1 text-purple-800">
+                    <GraduationCap className="h-4 w-4 shrink-0 text-[color:var(--brand-purple)]" />
+                    Sección de Creación Exclusiva
+                  </span>
+                  Este grupo se creará exclusivamente para tu sección asignada: <strong className="text-purple-900 font-extrabold">{selectedCourse && userSubaulas[selectedCourse] === 'Aula 1' ? 'Aula 101' : (selectedCourse && userSubaulas[selectedCourse] === 'Aula 2' ? 'Aula 102' : (selectedCourse && userSubaulas[selectedCourse] === 'Aula 3' ? 'Aula 103' : 'Aula 104'))}</strong>. No es posible crear grupos de subaula para secciones a las que no perteneces.
                 </div>
               )}
 
