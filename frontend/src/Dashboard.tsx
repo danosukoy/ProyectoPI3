@@ -188,7 +188,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Usamos setTimeout para asegurar que React haya renderizado los nuevos mensajes en el DOM primero
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   }, [chatMessages, activeChatGroup]);
 
   useEffect(() => {
@@ -2882,7 +2885,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
 
             {/* Chat Messages Area with beautiful bubbles */}
-            <div className="flex-1 min-h-0 p-5 overflow-y-auto space-y-4 bg-muted/20 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
+            <div 
+              className="flex-1 min-h-0 p-5 overflow-y-auto space-y-4 bg-muted/20"
+              style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}
+            >
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
                   <MessageCircle className="h-10 w-10 text-muted-foreground/45 mb-2 animate-bounce" />
