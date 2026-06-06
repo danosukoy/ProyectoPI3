@@ -23,4 +23,21 @@ api.interceptors.request.use(
   }
 );
 
+// Response interceptor to handle 401 Unauthorized errors (e.g. database resets or expired sessions)
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      console.warn('Sesión expirada o inválida (401). Redirigiendo al login...');
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Reload page to force redirection to login screen in App.tsx
+      window.location.reload();
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
