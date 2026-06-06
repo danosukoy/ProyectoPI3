@@ -324,10 +324,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     }
   };
 
-  const handleOpenChat = (groupName: string) => {
+  const handleOpenChat = async (groupName: string) => {
     setActiveChatGroup(groupName);
     setChatMessages([]);
     setNewMessageText('');
+    try {
+      const response = await api.get(`/chat/${encodeURIComponent(groupName)}/history`);
+      if (response.data) {
+        const history = response.data.map((msg: ChatMessage) => {
+           msg.isMe = (msg.sender === formatName(user.username));
+           return msg;
+        });
+        setChatMessages(history);
+      }
+    } catch (err) {
+      console.error('Error fetching chat history:', err);
+    }
   };
 
   const handleSendChatMessage = (e: React.FormEvent) => {
