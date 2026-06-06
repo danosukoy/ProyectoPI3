@@ -572,12 +572,26 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const handlePlusClick = () => {
     setActiveTab('inicio');
     setSelectedCourse(null);
-    setTimeout(() => {
+    setSearchQuery('');
+    
+    const tryScroll = () => {
       const el = document.getElementById('seccion-cursos-grupos');
       if (el) {
         el.scrollIntoView({ behavior: 'smooth' });
+        return true;
       }
-    }, 100);
+      return false;
+    };
+
+    if (!tryScroll()) {
+      let attempts = 0;
+      const intervalId = setInterval(() => {
+        attempts++;
+        if (tryScroll() || attempts >= 10) {
+          clearInterval(intervalId);
+        }
+      }, 50);
+    }
   };
 
   const handleJoinGroup = (groupName: string) => {
@@ -1321,7 +1335,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     {/* TWO GRIDS REQUESTED BY USER */}
                     
                     {/* Course Grid */}
-                    <section id="seccion-cursos-grupos" className="rounded-3xl bg-white shadow-card border border-border/40 p-6 space-y-6">
+                    <section 
+                      id="seccion-cursos-grupos" 
+                      className="rounded-3xl bg-white shadow-card border border-border/40 p-6 space-y-6"
+                      style={{ scrollMarginTop: '100px' }}
+                    >
                       <div>
                         <h2 className="text-xl font-bold text-foreground">Todos los Cursos Disponibles</h2>
                         <p className="text-xs text-muted-foreground mt-1">Inscríbete en los cursos generales y de carrera para acceder a sus grupos de estudio.</p>
@@ -2019,6 +2037,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   >
                     Consultar biblioteca
                   </button>
+                  <a 
+                    href="https://affluences.com/es/sites/biblioteca-utec"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 w-full py-2 flex items-center justify-center gap-1.5 rounded-xl bg-gradient-brand text-[10px] font-bold text-white shadow-soft hover:opacity-90 transition-all text-center cursor-pointer"
+                  >
+                    <span>No te olvides de hacer tu reserva oficial</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                  </a>
                 </div>
 
               </div>
@@ -2628,7 +2655,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
       {/* MODAL: CREAR GRUPO DE ESTUDIO (STEP 4) */}
       {showCreateGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in-0 duration-200">
           <div className="relative w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold text-foreground mb-1">Crear nuevo grupo</h3>
             <p className="text-xs text-muted-foreground mb-4">
@@ -2739,7 +2766,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
       {/* MODAL: RESERVAR HERRAMIENTA (STEP 5) */}
       {showReservationForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in-0 duration-200">
           <div className="relative w-full max-w-md rounded-2xl border border-border bg-white p-6 shadow-xl animate-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold text-foreground mb-1">{showReservationForm}</h3>
             <p className="text-xs text-muted-foreground mb-4">
@@ -2859,8 +2886,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
       {/* MODAL: CHAT GRUPAL INTERACTIVO */}
       {activeChatGroup && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col max-h-[450px] overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in-0 duration-200">
+          <div 
+            className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col overflow-hidden animate-in zoom-in-95 duration-200"
+            style={{ height: '500px', maxHeight: '85vh' }}
+          >
             
             {/* Header */}
             <div className="p-5 border-b border-border/60 flex justify-between items-center shrink-0">
@@ -2900,7 +2930,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 border: 3px solid #e2e8f0;
               }
             `}</style>
-            <div className="flex-1 min-h-0 p-5 overflow-y-scroll space-y-4 bg-slate-50 force-scrollbar">
+            <div 
+              className="flex-1 min-h-0 p-5 space-y-4 bg-slate-50 force-scrollbar"
+              style={{ overflowY: 'auto' }}
+            >
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
                   <MessageCircle className="h-10 w-10 text-muted-foreground/45 mb-2 animate-bounce" />
