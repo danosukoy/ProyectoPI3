@@ -2860,10 +2860,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       {/* MODAL: CHAT GRUPAL INTERACTIVO */}
       {activeChatGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 h-[85vh] max-h-[700px]">
+          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col h-[600px] overflow-hidden animate-in zoom-in-95 duration-200">
             
             {/* Header */}
-            <div className="absolute top-0 left-0 right-0 h-[80px] px-5 border-b border-border/60 flex justify-between items-center bg-white z-10">
+            <div className="p-5 border-b border-border/60 flex justify-between items-center shrink-0">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-brand flex items-center justify-center font-bold text-white text-sm select-none">
                   {getInitials(activeChatGroup)}
@@ -2884,17 +2884,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               </button>
             </div>
 
-            {/* Chat Messages Area with beautiful bubbles */}
-            <style>{`
-              .chat-scroll::-webkit-scrollbar { width: 6px; }
-              .chat-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.02); border-radius: 8px; }
-              .chat-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
-              .chat-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-            `}</style>
-            <div 
-              className="absolute top-[80px] bottom-[76px] left-0 right-0 p-5 overflow-y-scroll space-y-4 bg-slate-50 chat-scroll"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}
-            >
+            {/* Chat Messages Area with default visible scrollbar */}
+            <div className="flex-1 min-h-0 p-5 overflow-y-scroll space-y-4 bg-slate-50">
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
                   <MessageCircle className="h-10 w-10 text-muted-foreground/45 mb-2 animate-bounce" />
@@ -2929,7 +2920,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
 
             {/* Input form */}
-            <form onSubmit={handleSendChatMessage} className="absolute bottom-0 left-0 right-0 h-[76px] px-4 border-t border-border/60 flex items-center gap-3 bg-white z-10">
+            <form onSubmit={handleSendChatMessage} className="p-4 border-t border-border/60 flex items-center gap-3 shrink-0 bg-white">
               <input
                 type="text"
                 value={newMessageText}
@@ -2945,7 +2936,6 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                 Enviar
               </button>
             </form>
-
           </div>
         </div>
       )}
