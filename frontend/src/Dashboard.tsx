@@ -2885,7 +2885,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
 
             {/* Chat Messages Area with default visible scrollbar */}
-            <div className="flex-1 min-h-0 p-5 overflow-y-scroll space-y-4 bg-slate-50">
+            <style>{`
+              .force-scrollbar::-webkit-scrollbar {
+                width: 14px !important;
+                display: block !important;
+              }
+              .force-scrollbar::-webkit-scrollbar-track {
+                background: #e2e8f0 !important;
+                border-radius: 4px;
+              }
+              .force-scrollbar::-webkit-scrollbar-thumb {
+                background-color: #64748b !important;
+                border-radius: 4px;
+                border: 3px solid #e2e8f0;
+              }
+            `}</style>
+            <div className="flex-1 min-h-0 p-5 overflow-y-scroll space-y-4 bg-slate-50 force-scrollbar">
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
                   <MessageCircle className="h-10 w-10 text-muted-foreground/45 mb-2 animate-bounce" />
