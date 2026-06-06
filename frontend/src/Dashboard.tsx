@@ -335,16 +335,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
            msg.isMe = (msg.sender === formatName(user.username));
            return msg;
         });
-        // Sort chronologically by ID since IDs are based on Date.now()
-        history.sort((a: ChatMessage, b: ChatMessage) => Number(a.id) - Number(b.id));
         
         // Merge with existing messages in case WebSockets received some while fetching
         setChatMessages(prev => {
-           const all = [...history, ...prev];
-           // Remove duplicates
-           const unique = all.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
-           // Sort again just to be 100% sure
-           return unique.sort((a, b) => Number(a.id) - Number(b.id));
+           // Create a merged array, but trust the backend's 'history' order over 'prev'.
+           // Any messages in 'prev' that are NOT in 'history' were received via WS just now.
+           const historyIds = new Set(history.map(m => m.id));
+           const newLiveMessages = prev.filter(m => !historyIds.has(m.id));
+           
+           return [...history, ...newLiveMessages];
         });
       }
     } catch (err) {

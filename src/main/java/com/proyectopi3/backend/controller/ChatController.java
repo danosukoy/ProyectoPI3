@@ -37,6 +37,6 @@ public class ChatController {
     @GetMapping("/api/chat/{groupId}/history")
     @ResponseBody
     public List<ChatMessage> getChatHistory(@PathVariable String groupId) {
-        return chatMessageRepository.findByGroupIdOrderByIdAsc(groupId);
+        return chatMessageRepository.findByGroupIdOrderByCreatedAtAsc(groupId);
     }
 }

@@ -26,4 +26,7 @@ public class ChatMessage {
     private boolean isMe;
     
     private String groupId;
+
+    @org.hibernate.annotations.CreationTimestamp
+    private java.time.LocalDateTime createdAt;
 }
