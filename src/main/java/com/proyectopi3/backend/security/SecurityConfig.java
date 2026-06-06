@@ -63,7 +63,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> 
                 auth.requestMatchers("/api/auth/**").permitAll()
                     .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                    .requestMatchers("/", "/index.html", "/favicon.ico", "/UTEC Conexión — Crea tu cuenta_files/**").permitAll()
+                    .requestMatchers("/", "/index.html", "/favicon.ico", "/UTEC Conexión — Crea tu cuenta_files/**", "/ws/**").permitAll()
                     .anyRequest().authenticated()
             );
 

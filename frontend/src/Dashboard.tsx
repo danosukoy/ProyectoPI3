@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Client } from '@stomp/stompjs';
 import logo from './assets/logo.png';
 import students from './assets/students.png';
 import api from './services/api';
@@ -182,6 +183,47 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessageText, setNewMessageText] = useState<string>('');
 
+  const stompClientRef = useRef<Client | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    const client = new Client({
+      brokerURL: 'ws://localhost:8080/ws',
+      onConnect: () => {
+        setIsConnected(true);
+      },
+      onDisconnect: () => {
+        setIsConnected(false);
+      }
+    });
+    client.activate();
+    stompClientRef.current = client;
+
+    return () => {
+      client.deactivate();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isConnected && activeChatGroup && stompClientRef.current) {
+      const topic = `/topic/group/${encodeURIComponent(activeChatGroup)}`;
+      const subscription = stompClientRef.current.subscribe(topic, (msg) => {
+        if (msg.body) {
+          const newMsg = JSON.parse(msg.body) as ChatMessage;
+          const me = formatName(user.username);
+          newMsg.isMe = (newMsg.sender === me);
+          setChatMessages(prev => {
+            if (prev.find(m => m.id === newMsg.id)) return prev;
+            return [...prev, newMsg];
+          });
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [isConnected, activeChatGroup, user.username]);
+
   // User profile state for Step 7
   const [userProfile, setUserProfile] = useState<{ 
     username: string; 
@@ -279,54 +321,22 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   const handleSendChatMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessageText.trim()) return;
+    if (!newMessageText.trim() || !activeChatGroup || !stompClientRef.current || !stompClientRef.current.connected) return;
 
-    const myMessage: ChatMessage = {
+    const myMessage = {
       id: String(Date.now()),
       sender: formatName(user.username),
       text: newMessageText.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isMe: true
+      groupId: activeChatGroup
     };
 
-    setChatMessages(prev => [...prev, myMessage]);
-    const replyGroup = activeChatGroup;
+    stompClientRef.current.publish({
+      destination: `/app/chat/${encodeURIComponent(activeChatGroup)}/sendMessage`,
+      body: JSON.stringify(myMessage)
+    });
+
     setNewMessageText('');
-
-    // Simulate teammates replying after 1.5 seconds
-    setTimeout(() => {
-      const responses = [
-        "¡Excelente! Estoy de acuerdo con la propuesta.",
-        "Dale, yo me encargo de coordinar con el grupo.",
-        "Quedamos en eso entonces. Nos vemos en la sesión de estudio.",
-        "¿Podríamos reunirnos media hora antes para avanzar?",
-        "Entendido. Yo avanzo con la presentación del proyecto."
-      ];
-      const randomReply = responses[Math.floor(Math.random() * responses.length)];
-      const names = ["Diego Alva", "Mateo Rojas", "Lucía Méndez"];
-      const randomSender = names[Math.floor(Math.random() * names.length)];
-      
-      const teammateMessage: ChatMessage = {
-        id: String(Date.now() + 1),
-        sender: randomSender,
-        text: randomReply,
-        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        isMe: false
-      };
-      
-      setChatMessages(prev => [...prev, teammateMessage]);
-
-      // Add to notification panel
-      const newMsgNotif = {
-        id: 'notif-msg-' + Date.now(),
-        type: 'mensaje' as const,
-        title: `Nuevo mensaje de ${randomSender}`,
-        description: `En chat "${replyGroup}": "${randomReply}"`,
-        time: 'Ahora mismo',
-        read: false
-      };
-      setNotifications(prev => [newMsgNotif, ...prev]);
-    }, 1500);
   };
 
   // Fetch teams and bookings from Spring Boot backend on mount
