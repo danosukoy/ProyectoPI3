@@ -2860,7 +2860,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       {/* MODAL: CHAT GRUPAL INTERACTIVO */}
       {activeChatGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col max-h-[80vh] overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col max-h-[450px] overflow-hidden animate-in zoom-in-95 duration-200">
             
             {/* Header */}
             <div className="p-5 border-b border-border/60 flex justify-between items-center shrink-0">
