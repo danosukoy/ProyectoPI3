@@ -184,7 +184,12 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [newMessageText, setNewMessageText] = useState<string>('');
 
   const stompClientRef = useRef<Client | null>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isConnected, setIsConnected] = useState(false);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages, activeChatGroup]);
 
   useEffect(() => {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
@@ -2877,7 +2882,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
 
             {/* Chat Messages Area with beautiful bubbles */}
-            <div className="flex-1 min-h-0 p-5 overflow-y-auto space-y-4 bg-muted/20">
+            <div className="flex-1 min-h-0 p-5 overflow-y-auto space-y-4 bg-muted/20 [&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-thumb]:bg-gray-300 hover:[&::-webkit-scrollbar-thumb]:bg-gray-400 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-track]:bg-transparent">
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
                   <MessageCircle className="h-10 w-10 text-muted-foreground/45 mb-2 animate-bounce" />
@@ -2908,6 +2913,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                   </div>
                 ))
               )}
+              <div ref={messagesEndRef} className="h-1" />
             </div>
 
             {/* Input form */}
