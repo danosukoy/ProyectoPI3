@@ -2885,9 +2885,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
 
             {/* Chat Messages Area with beautiful bubbles */}
+            <style>{`
+              .chat-scroll::-webkit-scrollbar { width: 6px; }
+              .chat-scroll::-webkit-scrollbar-track { background: rgba(0,0,0,0.02); border-radius: 8px; }
+              .chat-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 8px; }
+              .chat-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+            `}</style>
             <div 
-              className="p-5 overflow-y-auto space-y-4 bg-muted/20 h-full w-full"
-              style={{ scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}
+              className="p-5 overflow-y-scroll space-y-4 bg-slate-50 h-full w-full chat-scroll"
+              style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}
             >
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
