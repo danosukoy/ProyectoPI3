@@ -2860,10 +2860,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       {/* MODAL: CHAT GRUPAL INTERACTIVO */}
       {activeChatGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl grid grid-rows-[auto_minmax(0,1fr)_auto] h-[85vh] max-h-[700px] overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200 h-[85vh] max-h-[700px]">
             
             {/* Header */}
-            <div className="p-5 border-b border-border/60 flex justify-between items-center shrink-0">
+            <div className="absolute top-0 left-0 right-0 h-[80px] px-5 border-b border-border/60 flex justify-between items-center bg-white z-10">
               <div className="flex items-center gap-3">
                 <div className="h-10 w-10 rounded-xl bg-gradient-brand flex items-center justify-center font-bold text-white text-sm select-none">
                   {getInitials(activeChatGroup)}
@@ -2892,7 +2892,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               .chat-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
             `}</style>
             <div 
-              className="p-5 overflow-y-scroll space-y-4 bg-slate-50 h-full w-full chat-scroll"
+              className="absolute top-[80px] bottom-[76px] left-0 right-0 p-5 overflow-y-scroll space-y-4 bg-slate-50 chat-scroll"
               style={{ scrollbarWidth: 'thin', scrollbarColor: '#cbd5e1 transparent' }}
             >
               {chatMessages.length === 0 ? (
@@ -2929,19 +2929,18 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
 
             {/* Input form */}
-            <form onSubmit={handleSendChatMessage} className="p-4 border-t border-border/60 flex gap-3 shrink-0 bg-white rounded-b-3xl">
+            <form onSubmit={handleSendChatMessage} className="absolute bottom-0 left-0 right-0 h-[76px] px-4 border-t border-border/60 flex items-center gap-3 bg-white z-10">
               <input
                 type="text"
                 value={newMessageText}
                 onChange={(e) => setNewMessageText(e.target.value)}
                 placeholder="Escribe tu mensaje aquí..."
                 className="flex-1 rounded-xl border border-border px-4 py-3 text-xs focus:outline-none transition-all text-foreground bg-white"
-                required
-                autoFocus
               />
               <button 
                 type="submit"
-                className="px-5 py-3 rounded-xl bg-gradient-brand text-white text-xs font-semibold shadow-soft hover:opacity-90 active:scale-95 transition-all cursor-pointer"
+                disabled={!newMessageText.trim()}
+                className="bg-gradient-brand text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Enviar
               </button>
