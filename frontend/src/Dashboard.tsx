@@ -206,7 +206,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   useEffect(() => {
     if (isConnected && activeChatGroup && stompClientRef.current) {
-      const topic = `/topic/group/${encodeURIComponent(activeChatGroup)}`;
+      const topic = `/topic/group/${activeChatGroup}`;
       const subscription = stompClientRef.current.subscribe(topic, (msg) => {
         if (msg.body) {
           const newMsg = JSON.parse(msg.body) as ChatMessage;
@@ -321,20 +321,26 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   const handleSendChatMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessageText.trim() || !activeChatGroup || !stompClientRef.current || !stompClientRef.current.connected) return;
+    if (!newMessageText.trim() || !activeChatGroup) return;
 
     const myMessage = {
       id: String(Date.now()),
       sender: formatName(user.username),
       text: newMessageText.trim(),
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      groupId: activeChatGroup
+      groupId: activeChatGroup,
+      isMe: true
     };
 
-    stompClientRef.current.publish({
-      destination: `/app/chat/${encodeURIComponent(activeChatGroup)}/sendMessage`,
-      body: JSON.stringify(myMessage)
-    });
+    if (stompClientRef.current && stompClientRef.current.connected) {
+      stompClientRef.current.publish({
+        destination: `/app/chat/${activeChatGroup}/sendMessage`,
+        body: JSON.stringify(myMessage)
+      });
+    } else {
+      alert("El servidor de chat no está conectado. Por favor reinicia el backend de Spring Boot.");
+      setChatMessages(prev => [...prev, myMessage]);
+    }
 
     setNewMessageText('');
   };
