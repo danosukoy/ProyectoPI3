@@ -340,8 +340,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         setChatMessages(prev => {
            // Create a merged array, but trust the backend's 'history' order over 'prev'.
            // Any messages in 'prev' that are NOT in 'history' were received via WS just now.
-           const historyIds = new Set(history.map(m => m.id));
-           const newLiveMessages = prev.filter(m => !historyIds.has(m.id));
+           const historyIds = new Set(history.map((m: ChatMessage) => m.id));
+           const newLiveMessages = prev.filter((m: ChatMessage) => !historyIds.has(m.id));
            
            return [...history, ...newLiveMessages];
         });
