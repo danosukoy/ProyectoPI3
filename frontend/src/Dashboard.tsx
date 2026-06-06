@@ -335,7 +335,17 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
            msg.isMe = (msg.sender === formatName(user.username));
            return msg;
         });
-        setChatMessages(history);
+        // Sort chronologically by ID since IDs are based on Date.now()
+        history.sort((a: ChatMessage, b: ChatMessage) => Number(a.id) - Number(b.id));
+        
+        // Merge with existing messages in case WebSockets received some while fetching
+        setChatMessages(prev => {
+           const all = [...history, ...prev];
+           // Remove duplicates
+           const unique = all.filter((v, i, a) => a.findIndex(t => (t.id === v.id)) === i);
+           // Sort again just to be 100% sure
+           return unique.sort((a, b) => Number(a.id) - Number(b.id));
+        });
       }
     } catch (err) {
       console.error('Error fetching chat history:', err);
