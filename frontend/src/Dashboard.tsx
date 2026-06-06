@@ -178,7 +178,16 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     text: string;
     time: string;
     isMe: boolean;
+    createdAt?: string;
   }
+
+  const getMessageTimestamp = (m: ChatMessage) => {
+    const num = Number(m.id);
+    if (!isNaN(num) && num > 0) return num;
+    if (m.createdAt) return new Date(m.createdAt).getTime();
+    return 0;
+  };
+
   const [activeChatGroup, setActiveChatGroup] = useState<string | null>(null);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [newMessageText, setNewMessageText] = useState<string>('');
@@ -233,7 +242,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           newMsg.isMe = (newMsg.sender === me);
           setChatMessages(prev => {
             if (prev.find(m => m.id === newMsg.id)) return prev;
-            return [...prev, newMsg];
+            const merged = [...prev, newMsg];
+            return merged.sort((a, b) => getMessageTimestamp(a) - getMessageTimestamp(b));
           });
         }
       });
@@ -351,7 +361,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
            const historyIds = new Set(history.map((m: ChatMessage) => m.id));
            const newLiveMessages = prev.filter((m: ChatMessage) => !historyIds.has(m.id));
            
-           return [...history, ...newLiveMessages];
+           const merged = [...history, ...newLiveMessages];
+           return merged.sort((a, b) => getMessageTimestamp(a) - getMessageTimestamp(b));
         });
       }
     } catch (err) {
@@ -379,7 +390,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       });
     } else {
       alert("El servidor de chat no está conectado. Por favor reinicia el backend de Spring Boot.");
-      setChatMessages(prev => [...prev, myMessage]);
+      setChatMessages(prev => {
+        const merged = [...prev, myMessage];
+        return merged.sort((a, b) => getMessageTimestamp(a) - getMessageTimestamp(b));
+      });
     }
 
     setNewMessageText('');
