@@ -25,4 +25,10 @@ public class Team {
     @NotBlank
     @Column(length = 100)
     private String university;
+
+    @Column(length = 20)
+    private String type; // "normal" or "subaula"
+
+    @Column(length = 50)
+    private String subaula;
 }

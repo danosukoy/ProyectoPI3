@@ -13,4 +13,7 @@ public class TeamRequest {
     @NotBlank
     @Size(min = 2, max = 100)
     private String university;
+
+    private String type;
+    private String subaula;
 }

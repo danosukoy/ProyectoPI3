@@ -135,8 +135,8 @@ public class AuthService {
                 fullName = (String) payload.get("name");
                 
                 // Restricción de correo institucional de UTEC
-                if (email == null || (!email.endsWith("@utec.edu.pe") && !email.endsWith("@utec.edu.ec") && !email.endsWith("@university.edu"))) {
-                    throw new IllegalArgumentException("Error: Solo se admiten correos institucionales de UTEC (@utec.edu.pe / @utec.edu.ec).");
+                if (email == null || !email.endsWith("@utec.edu.pe")) {
+                    throw new IllegalArgumentException("Error: Solo se admiten correos institucionales de UTEC (@utec.edu.pe).");
                 }
             }
 

@@ -56,8 +56,35 @@ public class DataLoader implements CommandLineRunner {
                     .role(Role.ROLE_PARTICIPANT)
                     .build();
             userRepository.save(participant);
+
+            User diego = User.builder()
+                    .username("Diego Alva")
+                    .email("diego.alva@utec.edu.pe")
+                    .password(passwordEncoder.encode("student123"))
+                    .role(Role.ROLE_PARTICIPANT)
+                    .career("Ciencias de la Computación")
+                    .build();
+            userRepository.save(diego);
+
+            User mateo = User.builder()
+                    .username("Mateo Rojas")
+                    .email("mateo.rojas@utec.edu.pe")
+                    .password(passwordEncoder.encode("student123"))
+                    .role(Role.ROLE_PARTICIPANT)
+                    .career("Sistemas de la Información")
+                    .build();
+            userRepository.save(mateo);
+
+            User lucia = User.builder()
+                    .username("Lucía Méndez")
+                    .email("lucia.mendez@utec.edu.pe")
+                    .password(passwordEncoder.encode("student123"))
+                    .role(Role.ROLE_PARTICIPANT)
+                    .career("Ingeniería Civil")
+                    .build();
+            userRepository.save(lucia);
             
-            System.out.println("Seeded initial users (admin/admin123, organizer/organizer123, participant/participant123)");
+            System.out.println("Seeded initial users and student profiles");
         }
 
         // Seed Disciplines if empty

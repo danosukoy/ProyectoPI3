@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   Users, 
   MessageCircle, 
@@ -22,15 +22,91 @@ interface UserData {
 }
 
 export default function App() {
-  // Session state (starts as null to showcase the beautiful welcome portal, logs in instantly with Google button)
-  const [user, setUser] = useState<UserData | null>(null);
+  // Session state (persists on device using localStorage)
+  const [user, setUser] = useState<UserData | null>(() => {
+    const savedUser = localStorage.getItem('user');
+    return savedUser ? JSON.parse(savedUser) : null;
+  });
 
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [showHelp, setShowHelp] = useState<boolean>(false);
 
-  // Google Login flow simulation - logs in against Spring Boot backend and retrieves real JWT Token
-  const handleGoogleBtnClick = async () => {
+  // Initialize official Google Sign-In button and One Tap prompt
+  useEffect(() => {
+    const initializeGoogle = () => {
+      const g = (window as any).google;
+      if (g) {
+        g.accounts.id.initialize({
+          client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '988062174173-r6h3ccaujcl3rv8ap8s32rnnrnu3tuho.apps.googleusercontent.com',
+          callback: handleCredentialResponse,
+        });
+
+        g.accounts.id.renderButton(
+          document.getElementById('google-signin-btn'),
+          {
+            theme: 'outline',
+            size: 'large',
+            width: '320', // Width matches login card style
+            text: 'signin_with',
+            shape: 'pill',
+          }
+        );
+
+        // Prompts Google One Tap
+        g.accounts.id.prompt();
+      }
+    };
+
+    if ((window as any).google) {
+      initializeGoogle();
+    } else {
+      const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      if (script) {
+        script.addEventListener('load', initializeGoogle);
+      }
+    }
+  }, []);
+
+  // Handle callback when Google responds with credential ID Token
+  const handleCredentialResponse = async (response: any) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const apiResponse = await api.post('/auth/google', {
+        idToken: response.credential
+      });
+      
+      const { token, username, email, role } = apiResponse.data;
+      
+      localStorage.setItem('token', token);
+      
+      const loggedUser: UserData = {
+        username: username || 'Usuario de UTEC',
+        email: email || 'usuario@utec.edu.pe',
+        role: role || 'ROLE_PARTICIPANT'
+      };
+      
+      localStorage.setItem('user', JSON.stringify(loggedUser));
+      setUser(loggedUser);
+    } catch (err: any) {
+      console.error('Error connecting to backend:', err);
+      let msg = 'Error de conexión con Google. Por favor, verifique su conexión e intente nuevamente.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          msg = err.response.data;
+        } else if (err.response.data.message) {
+          msg = err.response.data.message;
+        }
+      }
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Google Login flow simulation - bypass login for local testing
+  const handleMockGoogleBtnClick = async () => {
     setLoading(true);
     setError(null);
     try {
@@ -50,10 +126,18 @@ export default function App() {
         role: role || 'ROLE_PARTICIPANT'
       };
       
+      localStorage.setItem('user', JSON.stringify(loggedUser));
       setUser(loggedUser);
     } catch (err: any) {
-      console.error('Error connecting to backend:', err);
-      setError('Error al conectar con el servidor Spring Boot en localhost:8080. Por favor, inicie su servidor Spring Boot backend y vuelva a intentarlo.');
+      let msg = 'Error de conexión. Por favor, verifique que el servidor esté activo e intente nuevamente.';
+      if (err.response?.data) {
+        if (typeof err.response.data === 'string') {
+          msg = err.response.data;
+        } else if (err.response.data.message) {
+          msg = err.response.data.message;
+        }
+      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -63,6 +147,7 @@ export default function App() {
     setUser(null);
     setError(null);
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
   };
 
   // If user is logged in, show Dashboard
@@ -91,7 +176,7 @@ export default function App() {
             <span className="hidden sm:inline">¿Necesitas ayuda?</span>
           </button>
         </header>
-
+        
         {/* Main Grid Section */}
         <main className="mt-10 grid gap-10 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-14 items-start">
           
@@ -114,28 +199,25 @@ export default function App() {
                 </div>
               )}
 
-              <button 
-                onClick={handleGoogleBtnClick}
-                disabled={loading}
-                className="mt-10 w-full inline-flex items-center justify-center gap-3 rounded-xl bg-white border border-border shadow-soft px-6 py-3.5 text-base font-semibold text-foreground hover:shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer disabled:opacity-75 disabled:pointer-events-none"
-              >
+              {/* Real Google Login Button container and Mock Bypass */}
+              <div className="mt-10 w-full flex flex-col items-center gap-5">
                 {loading ? (
-                  <>
+                  <div className="inline-flex items-center justify-center gap-3 py-3.5">
                     <Loader2 className="h-5 w-5 animate-spin text-[color:var(--brand-orange)]" />
-                    <span>Conectando...</span>
-                  </>
+                    <span className="text-sm font-medium text-muted-foreground">Procesando inicio de sesión...</span>
+                  </div>
                 ) : (
-                  <>
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden="true">
-                      <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.24 1.4-1.7 4.1-5.5 4.1-3.3 0-6-2.74-6-6.1S8.7 6 12 6c1.88 0 3.14.8 3.86 1.48l2.63-2.54C16.84 3.44 14.64 2.5 12 2.5 6.76 2.5 2.5 6.76 2.5 12S6.76 21.5 12 21.5c6.92 0 9.5-4.86 9.5-7.34 0-.5-.05-.86-.12-1.26H12z"></path>
-                      <path fill="#4285F4" d="M21.5 12.2c0-.78-.07-1.36-.22-1.96H12v3.56h5.46c-.11.88-.7 2.2-2.02 3.08l3.27 2.54c1.96-1.8 3.09-4.46 3.09-7.22z"></path>
-                      <path fill="#FBBC05" d="M5.84 14.32A5.85 5.85 0 0 1 5.5 12c0-.8.14-1.58.36-2.32L2.5 7.06A9.5 9.5 0 0 0 2.5 12c0 1.54.36 2.98 1 4.26l3.34-1.94z"></path>
-                      <path fill="#34A853" d="M12 21.5c2.7 0 4.96-.88 6.62-2.4l-3.27-2.54c-.88.6-2.06 1.04-3.35 1.04-2.6 0-4.8-1.72-5.6-4.04L3.06 15.5C4.7 19 8.06 21.5 12 21.5z"></path>
-                    </svg>
-                    <span>Continuar con Google</span>
-                  </>
+                  <div id="google-signin-btn" className="w-full flex justify-center"></div>
                 )}
-              </button>
+                
+                <button 
+                  onClick={handleMockGoogleBtnClick}
+                  disabled={loading}
+                  className="text-xs text-muted-foreground hover:text-foreground underline transition-colors cursor-pointer disabled:opacity-50"
+                >
+                  [Bypass Desarrollo] Iniciar sesión simulada
+                </button>
+              </div>
 
               <p className="mt-10 text-xs text-muted-foreground leading-relaxed max-w-xs">
                 Al continuar, aceptas los{" "}

@@ -32,6 +32,8 @@ public class TeamService {
         Team team = Team.builder()
                 .name(request.getName())
                 .university(request.getUniversity())
+                .type(request.getType() != null ? request.getType() : "normal")
+                .subaula(request.getSubaula())
                 .build();
         return repository.save(team);
     }
@@ -47,6 +49,10 @@ public class TeamService {
             }
             existing.setName(request.getName());
             existing.setUniversity(request.getUniversity());
+            if (request.getType() != null) {
+                existing.setType(request.getType());
+            }
+            existing.setSubaula(request.getSubaula());
             return repository.save(existing);
         });
     }
