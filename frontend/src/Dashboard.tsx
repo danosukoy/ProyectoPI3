@@ -187,13 +187,24 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
+    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+    const wsUrl = API_URL.replace('http://', 'ws://').replace('https://', 'wss://').replace('/api', '/ws');
+
     const client = new Client({
-      brokerURL: 'ws://localhost:8080/ws',
+      brokerURL: wsUrl,
       onConnect: () => {
+        console.log('STOMP Connected to', wsUrl);
         setIsConnected(true);
       },
       onDisconnect: () => {
+        console.log('STOMP Disconnected');
         setIsConnected(false);
+      },
+      onWebSocketError: (error) => {
+        console.error('WebSocket Error:', error);
+      },
+      onStompError: (frame) => {
+        console.error('STOMP Error:', frame.headers['message'], frame.body);
       }
     });
     client.activate();
