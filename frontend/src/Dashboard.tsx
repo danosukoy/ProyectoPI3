@@ -2852,7 +2852,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       {/* MODAL: CHAT GRUPAL INTERACTIVO */}
       {activeChatGroup && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in-0 duration-200">
-          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-200">
+          <div className="relative w-full max-w-lg rounded-3xl border border-border bg-white shadow-2xl flex flex-col h-[90vh] sm:h-[600px] sm:max-h-[85vh] overflow-hidden animate-in zoom-in-95 duration-200">
             
             {/* Header */}
             <div className="p-5 border-b border-border/60 flex justify-between items-center shrink-0">
@@ -2877,7 +2877,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             </div>
 
             {/* Chat Messages Area with beautiful bubbles */}
-            <div className="flex-1 p-5 overflow-y-auto space-y-4 min-h-[300px] max-h-[450px] bg-muted/20">
+            <div className="flex-1 p-5 overflow-y-auto space-y-4 bg-muted/20">
               {chatMessages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center p-6 text-muted-foreground">
                   <MessageCircle className="h-10 w-10 text-muted-foreground/45 mb-2 animate-bounce" />
