@@ -66,6 +66,24 @@ interface Booking {
   status: 'pending' | 'completed' | 'no-show';
 }
 
+const formatTimeAgo = (dateStr: string) => {
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    if (diffMins < 1) return 'Ahora mismo';
+    if (diffMins < 60) return `Hace ${diffMins} min`;
+    const diffHours = Math.floor(diffMins / 60);
+    if (diffHours < 24) return `Hace ${diffHours} ${diffHours === 1 ? 'hora' : 'horas'}`;
+    const diffDays = Math.floor(diffHours / 24);
+    return `Hace ${diffDays} ${diffDays === 1 ? 'día' : 'días'}`;
+  } catch (e) {
+    return 'Hace poco';
+  }
+};
+
+
 export default function Dashboard({ user, onLogout }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<string>('inicio');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -252,6 +270,34 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       };
     }
   }, [isConnected, activeChatGroup, user.username]);
+
+  useEffect(() => {
+    if (isConnected && stompClientRef.current) {
+      const notifTopic = `/topic/notifications/${user.username}`;
+      const subscription = stompClientRef.current.subscribe(notifTopic, (msg) => {
+        if (msg.body) {
+          const newNotif = JSON.parse(msg.body);
+          setNotifications(prev => {
+            if (prev.find(n => String(n.id) === String(newNotif.id))) return prev;
+            return [
+              {
+                id: String(newNotif.id),
+                type: newNotif.type as 'reserva' | 'mensaje',
+                title: newNotif.title,
+                description: newNotif.description,
+                time: 'Ahora mismo',
+                read: newNotif.read
+              },
+              ...prev
+            ];
+          });
+        }
+      });
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [isConnected, user.username]);
 
   // User profile state for Step 7
   const [userProfile, setUserProfile] = useState<{ 
@@ -455,7 +501,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
               group: match.description || 'Grupo de estudio privado',
               date: dateObj.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' }),
               time: 'Hora: ' + dateObj.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }),
-              status: match.status === 'SCHEDULED' ? 'pending' : (match.status === 'COMPLETED' ? 'completed' : 'no-show')
+              status: (match.status === 'SCHEDULED' || match.status === 'ONGOING') ? 'pending' : ((match.status === 'FINISHED' || match.status === 'COMPLETED') ? 'completed' : 'no-show')
             };
           });
           
@@ -465,6 +511,23 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         }
       } catch (err) {
         console.warn('Backend server is not running or failed to fetch bookings. Using local mock data instead.', err);
+      }
+
+      try {
+        const notifResponse = await api.get('/notifications');
+        if (notifResponse.data && Array.isArray(notifResponse.data)) {
+          const loadedNotifications = notifResponse.data.map((n: any) => ({
+            id: String(n.id),
+            type: n.type as 'reserva' | 'mensaje',
+            title: n.title,
+            description: n.description,
+            time: formatTimeAgo(n.createdAt),
+            read: n.read
+          }));
+          setNotifications(loadedNotifications);
+        }
+      } catch (err) {
+        console.warn('Backend server is not running or failed to fetch notifications. Using mock data instead.', err);
       }
     };
 
@@ -718,6 +781,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       return;
     }
 
+    const startHourStr = reserveTime.split(' ')[0];
+    const reserveDateTime = new Date(reserveDate + 'T' + startHourStr + ':00');
+    const now = new Date();
+
+    if (reserveDateTime < now) {
+      setReserveError('No puedes realizar una reserva para una fecha o tiempo anterior al actual.');
+      return;
+    }
+
     setReservationSuccess(true);
 
     const bookingMock: Booking = {
@@ -739,7 +811,8 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         disciplineId: 1, // Fútbol / Disciplina sembrada
         homeTeamId: 1, // Leones / Team sembrado
         awayTeamId: 2, // Coyotes / Team sembrado
-        organizer: formatName(user.username)
+        organizer: formatName(user.username),
+        status: 'SCHEDULED'
       });
 
       if (response.data && response.data.id) {
@@ -762,15 +835,25 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     }
 
     // Add dynamic notification for the reservation
-    const newNotif = {
-      id: 'notif-reserva-' + Date.now(),
-      type: 'reserva' as const,
-      title: 'Reserva de Espacio',
-      description: `Reservaste el espacio ${reserveSpaceCode} para tu grupo ${reserveSubaulaGroup}.`,
-      time: 'Ahora mismo',
-      read: false
-    };
-    setNotifications(prev => [newNotif, ...prev]);
+    const newNotifText = `Reservaste el espacio ${reserveSpaceCode} para tu grupo ${reserveSubaulaGroup}.`;
+    try {
+      await api.post('/notifications', {
+        type: 'reserva',
+        title: 'Reserva de Espacio',
+        description: newNotifText
+      });
+    } catch (err) {
+      console.warn('Failed to save notification to backend. Fallback to local state.', err);
+      const newNotif = {
+        id: 'notif-reserva-' + Date.now(),
+        type: 'reserva' as const,
+        title: 'Reserva de Espacio',
+        description: newNotifText,
+        time: 'Ahora mismo',
+        read: false
+      };
+      setNotifications(prev => [newNotif, ...prev]);
+    }
 
     setTimeout(() => {
       setReservationSuccess(false);
@@ -778,6 +861,19 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       setActiveTab('historial'); // Switch to booking history
       setActiveBookingTab('prox');
     }, 1500);
+  };
+
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      const response = await api.post(`/matches/${bookingId}/cancel`);
+      if (response.data) {
+        // Update local state
+        setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'no-show' } : b));
+      }
+    } catch (err: any) {
+      console.error('Failed to cancel booking on backend', err);
+      alert(err.response?.data?.message || 'No tienes permiso para cancelar esta reserva.');
+    }
   };
 
   // Cursos Generales data from Step 3
@@ -823,10 +919,10 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   );
 
   return (
-    <div className="min-h-screen flex text-foreground font-display bg-[#f6f9fb]">
+    <div className="h-screen flex text-foreground font-display bg-[#f6f9fb] overflow-hidden">
       
       {/* Sidebar - Sleek White Design matching Mockup */}
-      <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-border/60 flex-col sticky top-0 h-screen">
+      <aside className="hidden lg:flex w-64 shrink-0 bg-white border-r border-border/60 flex-col h-full">
         
         {/* Logo Section */}
         <div className="px-6 py-5 border-b border-border/40">
@@ -986,7 +1082,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       </aside>
 
       {/* Main Area */}
-      <div className="flex-1 min-w-0 flex flex-col">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-y-auto">
         
         {/* Header matching mockup exact icons and borders */}
         <header className="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-border/40 px-4 sm:px-8 py-4 flex items-center gap-4">
@@ -1087,9 +1183,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
             
             <div className="relative">
               <button 
-                onClick={() => {
+                onClick={async () => {
                   if (!showNotifications) {
                     setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+                    try {
+                      await api.put('/notifications/mark-read');
+                    } catch (err) {
+                      console.warn('Failed to mark notifications read in backend', err);
+                    }
                   }
                   setShowNotifications(!showNotifications);
                 }}
@@ -1111,7 +1212,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                     <span className="font-bold text-xs text-foreground">Notificaciones</span>
                     {notifications.length > 0 && (
                       <button 
-                        onClick={() => setNotifications([])}
+                        onClick={async () => {
+                          setNotifications([]);
+                          try {
+                            await api.delete('/notifications');
+                          } catch (err) {
+                            console.warn('Failed to clear notifications in backend', err);
+                          }
+                        }}
                         className="text-[10px] font-semibold text-rose-500 hover:underline bg-transparent border-none cursor-pointer"
                       >
                         Limpiar todo
@@ -1151,9 +1259,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                             
                             {/* Close / Dismiss button */}
                             <button
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.stopPropagation();
                                 setNotifications(prev => prev.filter(item => item.id !== n.id));
+                                try {
+                                  await api.delete(`/notifications/${n.id}`);
+                                } catch (err) {
+                                  console.warn(`Failed to delete notification ${n.id} in backend`, err);
+                                }
                               }}
                               className="text-muted-foreground hover:text-foreground hover:scale-115 transition-all text-xs bg-transparent border-none cursor-pointer shrink-0 ml-1"
                               title="Descartar"
@@ -2163,9 +2276,17 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
                               <p className="text-[11px] text-muted-foreground">{b.group}</p>
                               <p className="text-[11px] mt-2 text-muted-foreground">{b.date} • {b.time}</p>
                             </div>
-                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-green-50 text-green-600 border border-green-100">
-                              Confirmada
-                            </span>
+                            <div className="flex items-center gap-3">
+                              <button
+                                onClick={() => handleCancelBooking(b.id)}
+                                className="text-[10px] font-semibold px-3 py-1 rounded-full border border-border/80 bg-white text-muted-foreground hover:text-red-600 hover:bg-red-50/50 hover:border-red-200 transition-all cursor-pointer"
+                              >
+                                Cancelar
+                              </button>
+                              <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-100 shrink-0">
+                                Confirmada
+                              </span>
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -2175,8 +2296,25 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
                 {/* Completed bookings */}
                 {activeBookingTab === 'comp' && (
-                  <div className="text-center py-8">
-                    <p className="text-xs text-muted-foreground">No hay reservas completadas recientemente en tu historial.</p>
+                  <div className="space-y-4">
+                    {bookings.filter(b => b.status === 'completed').length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-8">No hay reservas completadas recientemente en tu historial.</p>
+                    ) : (
+                      <div className="space-y-4 text-left">
+                        {bookings.filter(b => b.status === 'completed').map(b => (
+                          <div key={b.id} className="rounded-2xl border border-border/60 bg-white p-5 flex justify-between items-center shadow-soft">
+                            <div>
+                              <h3 className="font-bold text-sm text-foreground">{b.title}</h3>
+                              <p className="text-[11px] text-muted-foreground">{b.group}</p>
+                              <p className="text-[11px] mt-2 text-muted-foreground">{b.date} • {b.time}</p>
+                            </div>
+                            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100">
+                              Completada
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
 

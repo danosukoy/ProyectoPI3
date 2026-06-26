@@ -56,6 +56,13 @@ public class MatchService {
 
     @Transactional
     public UniversityMatch createMatch(MatchRequest request) {
+        if (request.getMatchDateTime() == null) {
+            throw new IllegalArgumentException("La fecha y hora de la reserva no puede estar vacía.");
+        }
+        if (request.getMatchDateTime().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalArgumentException("No puedes realizar una reserva para una fecha o tiempo anterior al actual.");
+        }
+
         Location location = locationRepository.findById(request.getLocationId())
                 .orElseThrow(() -> new IllegalArgumentException("Location not found with ID " + request.getLocationId()));
 
@@ -86,6 +93,7 @@ public class MatchService {
                 .homeScore(request.getHomeScore())
                 .awayScore(request.getAwayScore())
                 .organizer(request.getOrganizer())
+                .organizerUsername(request.getOrganizerUsername())
                 .status(status)
                 .build();
 
@@ -94,6 +102,13 @@ public class MatchService {
 
     @Transactional
     public Optional<UniversityMatch> updateMatch(Long id, MatchRequest request) {
+        if (request.getMatchDateTime() == null) {
+            throw new IllegalArgumentException("La fecha y hora de la reserva no puede estar vacía.");
+        }
+        if (request.getMatchDateTime().isBefore(java.time.LocalDateTime.now())) {
+            throw new IllegalArgumentException("No puedes realizar una reserva para una fecha o tiempo anterior al actual.");
+        }
+
         return matchRepository.findById(id).map(existingMatch -> {
             Location location = locationRepository.findById(request.getLocationId())
                     .orElseThrow(() -> new IllegalArgumentException("Location not found with ID " + request.getLocationId()));
@@ -124,9 +139,21 @@ public class MatchService {
             existingMatch.setHomeScore(request.getHomeScore());
             existingMatch.setAwayScore(request.getAwayScore());
             existingMatch.setOrganizer(request.getOrganizer());
+            existingMatch.setOrganizerUsername(request.getOrganizerUsername());
             existingMatch.setStatus(status);
 
             return matchRepository.save(existingMatch);
+        });
+    }
+
+    @Transactional
+    public Optional<UniversityMatch> cancelMatch(Long id, String username, boolean isAdmin) {
+        return matchRepository.findById(id).map(match -> {
+            if (!isAdmin && match.getOrganizerUsername() != null && !match.getOrganizerUsername().equals(username)) {
+                throw new IllegalArgumentException("No tienes permiso para cancelar esta reserva.");
+            }
+            match.setStatus(MatchStatus.CANCELLED);
+            return matchRepository.save(match);
         });
     }
 

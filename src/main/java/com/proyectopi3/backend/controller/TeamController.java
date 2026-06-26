@@ -42,8 +42,8 @@ public class TeamController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
-    @Operation(summary = "Create a new team", description = "Register a new university team. Restricted to ADMIN and ORGANIZER.")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER') or hasRole('PARTICIPANT')")
+    @Operation(summary = "Create a new team", description = "Register a new university team. Restricted to ADMIN, ORGANIZER, and PARTICIPANT.")
     public ResponseEntity<?> create(@Valid @RequestBody TeamRequest request) {
         try {
             Team team = service.create(request);
@@ -54,8 +54,8 @@ public class TeamController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
-    @Operation(summary = "Update an existing team", description = "Update information about a university team. Restricted to ADMIN and ORGANIZER.")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER') or hasRole('PARTICIPANT')")
+    @Operation(summary = "Update an existing team", description = "Update information about a university team. Restricted to ADMIN, ORGANIZER, and PARTICIPANT.")
     public ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody TeamRequest request) {
         try {
             java.util.Optional<Team> updatedOpt = service.update(id, request);

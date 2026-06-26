@@ -147,7 +147,7 @@ class AuthServiceTest {
 
         assertNotNull(response);
         assertEquals("jwtToken", response.getToken());
-        assertEquals("Nubia Elena", response.getUsername());
+        assertEquals("nubia.elena", response.getUsername());
         assertEquals("nubia.elena@utec.edu.pe", response.getEmail());
         assertEquals("ROLE_PARTICIPANT", response.getRole());
     }

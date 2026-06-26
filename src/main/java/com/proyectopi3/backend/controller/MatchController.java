@@ -11,6 +11,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import com.proyectopi3.backend.security.CustomUserDetails;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
@@ -45,10 +47,15 @@ public class MatchController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
-    @Operation(summary = "Create a new match", description = "Create a new sports event. Restricted to ADMIN and ORGANIZER roles.")
-    public ResponseEntity<?> createMatch(@Valid @RequestBody MatchRequest matchRequest) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER') or hasRole('PARTICIPANT')")
+    @Operation(summary = "Create a new match", description = "Create a new sports event. Restricted to ADMIN, ORGANIZER, and PARTICIPANT roles.")
+    public ResponseEntity<?> createMatch(
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody MatchRequest matchRequest) {
         try {
+            if (userDetails != null) {
+                matchRequest.setOrganizerUsername(userDetails.getUsername());
+            }
             UniversityMatch match = matchService.createMatch(matchRequest);
             return ResponseEntity.status(HttpStatus.CREATED).body(match);
         } catch (IllegalArgumentException e) {
@@ -57,10 +64,16 @@ public class MatchController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
-    @Operation(summary = "Update an existing match", description = "Update details of a match. Restricted to ADMIN and ORGANIZER roles.")
-    public ResponseEntity<?> updateMatch(@PathVariable Long id, @Valid @RequestBody MatchRequest matchRequest) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER') or hasRole('PARTICIPANT')")
+    @Operation(summary = "Update an existing match", description = "Update details of a match. Restricted to ADMIN, ORGANIZER, and PARTICIPANT roles.")
+    public ResponseEntity<?> updateMatch(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails,
+            @Valid @RequestBody MatchRequest matchRequest) {
         try {
+            if (userDetails != null) {
+                matchRequest.setOrganizerUsername(userDetails.getUsername());
+            }
             java.util.Optional<UniversityMatch> updatedOpt = matchService.updateMatch(id, matchRequest);
             if (updatedOpt.isPresent()) {
                 return ResponseEntity.ok(updatedOpt.get());
@@ -70,6 +83,29 @@ public class MatchController {
             }
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new MessageResponse("Error: " + e.getMessage()));
+        }
+    }
+
+    @PostMapping("/{id}/cancel")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER') or hasRole('PARTICIPANT')")
+    @Operation(summary = "Cancel a match/booking", description = "Allows the organizer or an admin to cancel a scheduled booking.")
+    public ResponseEntity<?> cancelMatch(
+            @PathVariable Long id,
+            @AuthenticationPrincipal CustomUserDetails userDetails) {
+        try {
+            String username = userDetails != null ? userDetails.getUsername() : "";
+            boolean isAdmin = userDetails != null && userDetails.getAuthorities().stream()
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+            
+            java.util.Optional<UniversityMatch> cancelledMatch = matchService.cancelMatch(id, username, isAdmin);
+            if (cancelledMatch.isPresent()) {
+                return ResponseEntity.ok(cancelledMatch.get());
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(new MessageResponse("Error: Match not found with ID " + id));
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
         }
     }
 

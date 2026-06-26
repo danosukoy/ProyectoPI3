@@ -53,7 +53,18 @@ public class UniversityMatch {
     @Column(length = 100)
     private String organizer;
 
+    @Column(length = 50)
+    private String organizerUsername;
+
     @NotNull
     @Enumerated(EnumType.STRING)
     private MatchStatus status;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean reminderOneDaySent = false;
+
+    @Builder.Default
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean reminderOneHourSent = false;
 }

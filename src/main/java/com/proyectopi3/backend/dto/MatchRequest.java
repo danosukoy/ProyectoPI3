@@ -36,6 +36,7 @@ public class MatchRequest {
     @Size(max = 100)
     private String organizer;
 
-    @NotBlank
+    private String organizerUsername;
+
     private String status; // Expected to match MatchStatus enum values
 }
