@@ -1,8 +1,8 @@
 package com.proyectopi3.backend.service;
 
-import com.proyectopi3.backend.dto.DisciplineRequest;
-import com.proyectopi3.backend.model.Discipline;
-import com.proyectopi3.backend.repository.DisciplineRepository;
+import com.proyectopi3.backend.dto.CourseRequest;
+import com.proyectopi3.backend.model.Course;
+import com.proyectopi3.backend.repository.CourseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,26 +10,26 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class DisciplineService {
+public class CourseService {
     @Autowired
-    private DisciplineRepository repository;
+    private CourseRepository repository;
 
     @Transactional(readOnly = true)
-    public List<Discipline> getAll() {
+    public List<Course> getAll() {
         return repository.findAll();
     }
 
     @Transactional(readOnly = true)
-    public Optional<Discipline> getById(Long id) {
+    public Optional<Course> getById(Long id) {
         return repository.findById(id);
     }
 
     @Transactional
-    public Discipline create(DisciplineRequest request) {
+    public Course create(CourseRequest request) {
         if (repository.existsByNameIgnoreCase(request.getName())) {
-            throw new IllegalArgumentException("Discipline with name '" + request.getName() + "' already exists");
+            throw new IllegalArgumentException("Course with name '" + request.getName() + "' already exists");
         }
-        Discipline discipline = Discipline.builder()
+        Course discipline = Course.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .build();
@@ -37,11 +37,11 @@ public class DisciplineService {
     }
 
     @Transactional
-    public Optional<Discipline> update(Long id, DisciplineRequest request) {
+    public Optional<Course> update(Long id, CourseRequest request) {
         return repository.findById(id).map(existing -> {
             if (!existing.getName().equalsIgnoreCase(request.getName()) &&
                     repository.existsByNameIgnoreCase(request.getName())) {
-                throw new IllegalArgumentException("Discipline with name '" + request.getName() + "' already exists");
+                throw new IllegalArgumentException("Course with name '" + request.getName() + "' already exists");
             }
             existing.setName(request.getName());
             existing.setDescription(request.getDescription());

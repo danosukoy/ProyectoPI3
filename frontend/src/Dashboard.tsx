@@ -445,7 +445,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     setNewMessageText('');
   };
 
-  // Fetch teams and bookings from Spring Boot backend on mount
+  // Fetch study_groups and bookings from Spring Boot backend on mount
   useEffect(() => {
     const loadBackendData = async () => {
       try {
@@ -464,15 +464,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
       }
 
       try {
-        // 1. Fetch groups/teams from Spring Boot backend
-        const teamsResponse = await api.get('/teams');
-        if (teamsResponse.data && Array.isArray(teamsResponse.data)) {
-          const loadedGroups = teamsResponse.data.map((team: any) => ({
+        // 1. Fetch groups/study_groups from Spring Boot backend
+        const study_groupsResponse = await api.get('/study_groups');
+        if (study_groupsResponse.data && Array.isArray(study_groupsResponse.data)) {
+          const loadedGroups = study_groupsResponse.data.map((team: any) => ({
             id: 'backend-' + team.id,
             name: team.name,
-            courseName: team.university || 'General',
+            courseName: team.courseName || 'General',
             members: 4 + (team.id % 5), // Mock member count logically based on ID
-            description: `Grupo colaborativo registrado en el backend de UTEC Conexión para ${team.university || 'General'}.`,
+            description: `Grupo colaborativo registrado en el backend de UTEC Conexión para ${team.courseName || 'General'}.`,
             type: team.type || 'normal',
             subaula: team.subaula
           }));
@@ -486,15 +486,15 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
           }
         }
       } catch (err) {
-        console.warn('Backend server is not running or failed to fetch teams. Using local mock data instead.', err);
+        console.warn('Backend server is not running or failed to fetch study_groups. Using local mock data instead.', err);
       }
 
       try {
         // 2. Fetch matches/bookings from Spring Boot backend
-        const matchesResponse = await api.get('/matches');
+        const matchesResponse = await api.get('/bookings');
         if (matchesResponse.data && Array.isArray(matchesResponse.data)) {
           const loadedBookings: Booking[] = matchesResponse.data.map((match: any) => {
-            const dateObj = new Date(match.matchDateTime || Date.now());
+            const dateObj = new Date(match.bookingDateTime || Date.now());
             return {
               id: String(match.id),
               title: match.title || 'Reserva de Espacio',
@@ -716,9 +716,9 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
     try {
       // POST to Spring Boot backend to save the new team
-      const response = await api.post('/teams', {
+      const response = await api.post('/study_groups', {
         name: newGroupName.trim(),
-        university: selectedCourse || 'General', // Map the course to the university property in Team model
+        courseName: selectedCourse || 'General', // Map the course to the university property in StudyGroup model
         type: newGroupType,
         subaula: newGroupType === 'subaula' ? newGroupSubaula : undefined
       });
@@ -727,7 +727,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
         const savedGroup: Group = {
           id: 'backend-' + response.data.id,
           name: response.data.name,
-          courseName: response.data.university || 'General',
+          courseName: response.data.courseName || 'General',
           members: 1,
           description: newGroupDesc.trim() || 'Grupo de estudio registrado y guardado en el servidor.',
           type: response.data.type || newGroupType,
@@ -803,20 +803,20 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
     try {
       // Create a reservation (match) in Spring Boot backend
-      const response = await api.post('/matches', {
+      const response = await api.post('/bookings', {
         title: `${showReservationForm} - Espacio: ${reserveSpaceCode}`,
         description: reserveSubaulaGroup,
-        matchDateTime: new Date(reserveDate + 'T' + (reserveTime.split(' ')[0]) + ':00').toISOString(),
+        bookingDateTime: new Date(reserveDate + 'T' + (reserveTime.split(' ')[0]) + ':00').toISOString(),
         locationId: 1, // Estadio / Coliseo / Cubículo sembrado
-        disciplineId: 1, // Fútbol / Disciplina sembrada
-        homeTeamId: 1, // Leones / Team sembrado
-        awayTeamId: 2, // Coyotes / Team sembrado
+        courseId: 1, // Fútbol / Disciplina sembrada
+        homeStudyGroupId: 1, // Leones / StudyGroup sembrado
+        awayStudyGroupId: 2, // Coyotes / StudyGroup sembrado
         organizer: formatName(user.username),
         status: 'SCHEDULED'
       });
 
       if (response.data && response.data.id) {
-        const dateObj = new Date(response.data.matchDateTime || Date.now());
+        const dateObj = new Date(response.data.bookingDateTime || Date.now());
         const savedBooking: Booking = {
           id: String(response.data.id),
           title: response.data.title || `${showReservationForm} - Espacio: ${reserveSpaceCode}`,
@@ -865,7 +865,7 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      const response = await api.post(`/matches/${bookingId}/cancel`);
+      const response = await api.post(`/bookings/${bookingId}/cancel`);
       if (response.data) {
         // Update local state
         setBookings(prev => prev.map(b => b.id === bookingId ? { ...b, status: 'no-show' } : b));

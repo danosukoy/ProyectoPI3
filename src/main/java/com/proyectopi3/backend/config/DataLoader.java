@@ -15,16 +15,16 @@ public class DataLoader implements CommandLineRunner {
     private UserRepository userRepository;
 
     @Autowired
-    private DisciplineRepository disciplineRepository;
+    private CourseRepository courseRepository;
 
     @Autowired
     private LocationRepository locationRepository;
 
     @Autowired
-    private TeamRepository teamRepository;
+    private StudyGroupRepository studyGroupRepository;
 
     @Autowired
-    private MatchRepository matchRepository;
+    private BookingRepository bookingRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -87,27 +87,27 @@ public class DataLoader implements CommandLineRunner {
             System.out.println("Seeded initial users and student profiles");
         }
 
-        // Seed Disciplines if empty
-        if (disciplineRepository.count() == 0) {
-            Discipline futbol = Discipline.builder()
+        // Seed Courses if empty
+        if (courseRepository.count() == 0) {
+            Course futbol = Course.builder()
                     .name("Fútbol Masculino")
                     .description("Torneo Interfacultades de Fútbol 11")
                     .build();
-            disciplineRepository.save(futbol);
+            courseRepository.save(futbol);
 
-            Discipline basquet = Discipline.builder()
+            Course basquet = Course.builder()
                     .name("Básquetbol Femenino")
                     .description("Liga Universitaria de Básquetbol Femenil")
                     .build();
-            disciplineRepository.save(basquet);
+            courseRepository.save(basquet);
 
-            Discipline volei = Discipline.builder()
+            Course volei = Course.builder()
                     .name("Voleibol Mixto")
                     .description("Copa Amistosa de Voleibol Mixto")
                     .build();
-            disciplineRepository.save(volei);
+            courseRepository.save(volei);
 
-            System.out.println("Seeded initial disciplines");
+            System.out.println("Seeded initial courses");
         }
 
         // Seed Locations if empty
@@ -127,53 +127,53 @@ public class DataLoader implements CommandLineRunner {
             System.out.println("Seeded initial locations");
         }
 
-        // Seed Teams if empty
-        if (teamRepository.count() == 0) {
-            Team ing = Team.builder()
+        // Seed StudyGroups if empty
+        if (studyGroupRepository.count() == 0) {
+            StudyGroup ing = StudyGroup.builder()
                     .name("Leones de Ingeniería")
-                    .university("Universidad Nacional")
+                    .courseName("Universidad Nacional")
                     .build();
-            teamRepository.save(ing);
+            studyGroupRepository.save(ing);
 
-            Team med = Team.builder()
+            StudyGroup med = StudyGroup.builder()
                     .name("Coyotes de Medicina")
-                    .university("Universidad Nacional")
+                    .courseName("Universidad Nacional")
                     .build();
-            teamRepository.save(med);
+            studyGroupRepository.save(med);
 
-            Team cs = Team.builder()
+            StudyGroup cs = StudyGroup.builder()
                     .name("Tiburones de Ciencias")
-                    .university("Universidad Central")
+                    .courseName("Universidad Central")
                     .build();
-            teamRepository.save(cs);
+            studyGroupRepository.save(cs);
 
-            System.out.println("Seeded initial teams");
+            System.out.println("Seeded initial study_groups");
         }
 
         // Seed Matches if empty
-        if (matchRepository.count() == 0) {
-            Discipline futbol = disciplineRepository.findByNameIgnoreCase("Fútbol Masculino").orElse(null);
+        if (bookingRepository.count() == 0) {
+            Course futbol = courseRepository.findByNameIgnoreCase("Fútbol Masculino").orElse(null);
             Location campoA = locationRepository.findByNameIgnoreCase("Estadio Universitario - Campo A").orElse(null);
-            Team ing = teamRepository.findByUniversityIgnoreCase("Universidad Nacional").stream()
+            StudyGroup ing = studyGroupRepository.findByCourseNameIgnoreCase("Universidad Nacional").stream()
                     .filter(t -> t.getName().contains("Ingeniería")).findFirst().orElse(null);
-            Team med = teamRepository.findByUniversityIgnoreCase("Universidad Nacional").stream()
+            StudyGroup med = studyGroupRepository.findByCourseNameIgnoreCase("Universidad Nacional").stream()
                     .filter(t -> t.getName().contains("Medicina")).findFirst().orElse(null);
 
             if (futbol != null && campoA != null && ing != null && med != null) {
-                UniversityMatch match = UniversityMatch.builder()
+                Booking match = Booking.builder()
                         .title("Clásico Interfacultades: Ingeniería vs Medicina")
                         .description("Partido inaugural de la Copa Deportes 2026")
-                        .matchDateTime(LocalDateTime.now().plusDays(5))
+                        .bookingDateTime(LocalDateTime.now().plusDays(5))
                         .location(campoA)
-                        .discipline(futbol)
-                        .homeTeam(ing)
-                        .awayTeam(med)
+                        .course(futbol)
+                        .homeGroup(ing)
+                        .awayGroup(med)
                         .homeScore(null)
                         .awayScore(null)
                         .organizer("Oficina de Bienestar Universitario")
-                        .status(MatchStatus.SCHEDULED)
+                        .status(BookingStatus.SCHEDULED)
                         .build();
-                matchRepository.save(match);
+                bookingRepository.save(match);
                 System.out.println("Seeded initial university match");
             }
         }

@@ -8,12 +8,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "disciplines")
+@Table(name = "courses")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Discipline {
+public class Course {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

@@ -10,12 +10,12 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "university_matches")
+@Table(name = "bookings")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class UniversityMatch {
+public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -28,23 +28,23 @@ public class UniversityMatch {
     private String description;
 
     @NotNull
-    private LocalDateTime matchDateTime;
+    private LocalDateTime bookingDateTime;
 
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "location_id")
     private Location location;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "discipline_id")
-    private Discipline discipline;
+    @JoinColumn(name = "course_id")
+    private Course course;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "home_team_id")
-    private Team homeTeam;
+    @JoinColumn(name = "home_group_id")
+    private StudyGroup homeGroup;
 
     @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "away_team_id")
-    private Team awayTeam;
+    @JoinColumn(name = "away_group_id")
+    private StudyGroup awayGroup;
 
     private Integer homeScore;
     private Integer awayScore;
@@ -58,7 +58,7 @@ public class UniversityMatch {
 
     @NotNull
     @Enumerated(EnumType.STRING)
-    private MatchStatus status;
+    private BookingStatus status;
 
     @Builder.Default
     @Column(nullable = false, columnDefinition = "boolean default false")

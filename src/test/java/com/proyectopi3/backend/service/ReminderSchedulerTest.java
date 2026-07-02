@@ -1,7 +1,7 @@
 package com.proyectopi3.backend.service;
 
 import com.proyectopi3.backend.model.*;
-import com.proyectopi3.backend.repository.MatchRepository;
+import com.proyectopi3.backend.repository.BookingRepository;
 import com.proyectopi3.backend.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.*;
 class ReminderSchedulerTest {
 
     @Mock
-    private MatchRepository matchRepository;
+    private BookingRepository bookingRepository;
 
     @Mock
     private UserRepository userRepository;
@@ -36,10 +36,10 @@ class ReminderSchedulerTest {
     void testCheckAndSendReminders_OneDayBefore() {
         // Arrange
         Location location = Location.builder().name("Aula 101").build();
-        UniversityMatch match = UniversityMatch.builder()
+        Booking match = Booking.builder()
                 .id(1L)
                 .title("Clase de Cálculo")
-                .matchDateTime(LocalDateTime.now().plusHours(23)) // 23 hours in the future (within 24h window)
+                .bookingDateTime(LocalDateTime.now().plusHours(23)) // 23 hours in the future (within 24h window)
                 .location(location)
                 .organizerUsername("diego.alva")
                 .reminderOneDaySent(false)
@@ -48,7 +48,7 @@ class ReminderSchedulerTest {
 
         User user = User.builder().username("diego.alva").build();
 
-        when(matchRepository.findAll()).thenReturn(Collections.singletonList(match));
+        when(bookingRepository.findAll()).thenReturn(Collections.singletonList(match));
         when(userRepository.findByUsername("diego.alva")).thenReturn(Optional.of(user));
 
         // Act
@@ -61,7 +61,7 @@ class ReminderSchedulerTest {
                 contains("1 día"),
                 anyString()
         );
-        verify(matchRepository, times(1)).save(match);
+        verify(bookingRepository, times(1)).save(match);
         assertTrue(match.isReminderOneDaySent());
         assertTrue(!match.isReminderOneHourSent());
     }
@@ -70,10 +70,10 @@ class ReminderSchedulerTest {
     void testCheckAndSendReminders_OneHourBefore() {
         // Arrange
         Location location = Location.builder().name("Aula 101").build();
-        UniversityMatch match = UniversityMatch.builder()
+        Booking match = Booking.builder()
                 .id(2L)
                 .title("Clase de Física")
-                .matchDateTime(LocalDateTime.now().plusMinutes(45)) // 45 minutes in the future (within 1h window)
+                .bookingDateTime(LocalDateTime.now().plusMinutes(45)) // 45 minutes in the future (within 1h window)
                 .location(location)
                 .organizerUsername("lucia.mendez")
                 .reminderOneDaySent(true) // already sent 1 day
@@ -82,7 +82,7 @@ class ReminderSchedulerTest {
 
         User user = User.builder().username("lucia.mendez").build();
 
-        when(matchRepository.findAll()).thenReturn(Collections.singletonList(match));
+        when(bookingRepository.findAll()).thenReturn(Collections.singletonList(match));
         when(userRepository.findByUsername("lucia.mendez")).thenReturn(Optional.of(user));
 
         // Act
@@ -95,7 +95,7 @@ class ReminderSchedulerTest {
                 contains("1 hora"),
                 anyString()
         );
-        verify(matchRepository, times(1)).save(match);
+        verify(bookingRepository, times(1)).save(match);
         assertTrue(match.isReminderOneHourSent());
     }
 
@@ -103,24 +103,24 @@ class ReminderSchedulerTest {
     void testCheckAndSendReminders_AutoComplete() {
         // Arrange
         Location location = Location.builder().name("Aula 101").build();
-        UniversityMatch match = UniversityMatch.builder()
+        Booking match = Booking.builder()
                 .id(3L)
                 .title("Clase de Química")
-                .matchDateTime(LocalDateTime.now().minusHours(2)) // 2 hours ago (past the 1 hour duration)
+                .bookingDateTime(LocalDateTime.now().minusHours(2)) // 2 hours ago (past the 1 hour duration)
                 .location(location)
                 .organizerUsername("diego.alva")
-                .status(MatchStatus.SCHEDULED)
+                .status(BookingStatus.SCHEDULED)
                 .reminderOneDaySent(true)
                 .reminderOneHourSent(true)
                 .build();
 
-        when(matchRepository.findAll()).thenReturn(Collections.singletonList(match));
+        when(bookingRepository.findAll()).thenReturn(Collections.singletonList(match));
 
         // Act
         reminderScheduler.checkAndSendReminders();
 
         // Assert
-        verify(matchRepository, times(1)).save(match);
-        org.junit.jupiter.api.Assertions.assertEquals(MatchStatus.FINISHED, match.getStatus());
+        verify(bookingRepository, times(1)).save(match);
+        org.junit.jupiter.api.Assertions.assertEquals(BookingStatus.FINISHED, match.getStatus());
     }
 }

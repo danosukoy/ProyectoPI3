@@ -1,8 +1,8 @@
 package com.proyectopi3.backend.service;
 
-import com.proyectopi3.backend.model.UniversityMatch;
+import com.proyectopi3.backend.model.Booking;
 import com.proyectopi3.backend.model.User;
-import com.proyectopi3.backend.repository.MatchRepository;
+import com.proyectopi3.backend.repository.BookingRepository;
 import com.proyectopi3.backend.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -16,7 +16,7 @@ import java.util.Optional;
 public class ReminderScheduler {
 
     @Autowired
-    private MatchRepository matchRepository;
+    private BookingRepository bookingRepository;
 
     @Autowired
     private UserRepository userRepository;
@@ -29,10 +29,10 @@ public class ReminderScheduler {
     @Scheduled(fixedRate = 10000) // Runs every 10 seconds
     public void checkAndSendReminders() {
         LocalDateTime now = LocalDateTime.now();
-        List<UniversityMatch> matches = matchRepository.findAll();
+        List<Booking> matches = bookingRepository.findAll();
 
-        for (UniversityMatch match : matches) {
-            LocalDateTime matchTime = match.getMatchDateTime();
+        for (Booking match : matches) {
+            LocalDateTime matchTime = match.getBookingDateTime();
             if (matchTime == null) continue;
 
             // 1. One Day Reminder (24 hours before match time)
@@ -46,7 +46,7 @@ public class ReminderScheduler {
                             match.getLocation().getName() + " está programada para mañana a las " + 
                             matchTime.format(TIME_FORMATTER) + ".");
                     match.setReminderOneDaySent(true);
-                    matchRepository.save(match);
+                    bookingRepository.save(match);
                 }
             }
 
@@ -60,23 +60,23 @@ public class ReminderScheduler {
                             match.getLocation().getName() + " comienza en menos de una hora (a las " + 
                             matchTime.format(TIME_FORMATTER) + ").");
                     match.setReminderOneHourSent(true);
-                    matchRepository.save(match);
+                    bookingRepository.save(match);
                 }
             }
 
             // 3. Auto-complete reservation once the hour ends
-            if (match.getStatus() == com.proyectopi3.backend.model.MatchStatus.SCHEDULED || match.getStatus() == com.proyectopi3.backend.model.MatchStatus.ONGOING) {
+            if (match.getStatus() == com.proyectopi3.backend.model.BookingStatus.SCHEDULED || match.getStatus() == com.proyectopi3.backend.model.BookingStatus.ONGOING) {
                 LocalDateTime endOfReservation = matchTime.plusHours(1);
                 if (now.isAfter(endOfReservation)) {
-                    match.setStatus(com.proyectopi3.backend.model.MatchStatus.FINISHED);
-                    matchRepository.save(match);
+                    match.setStatus(com.proyectopi3.backend.model.BookingStatus.FINISHED);
+                    bookingRepository.save(match);
                     System.out.println("Reservation '" + match.getTitle() + "' auto-completed (hour ended).");
                 }
             }
         }
     }
 
-    private void sendReminder(UniversityMatch match, String title, String description) {
+    private void sendReminder(Booking match, String title, String description) {
         Optional<User> userOpt = Optional.empty();
         String organizerUsername = match.getOrganizerUsername();
         if (organizerUsername != null && !organizerUsername.trim().isEmpty()) {

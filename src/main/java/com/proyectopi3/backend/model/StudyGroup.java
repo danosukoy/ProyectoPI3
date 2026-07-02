@@ -8,12 +8,12 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "teams")
+@Table(name = "study_groups")
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Team {
+public class StudyGroup {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -24,7 +24,7 @@ public class Team {
 
     @NotBlank
     @Column(length = 100)
-    private String university;
+    private String courseName;
 
     @Column(length = 20)
     private String type; // "normal" or "subaula"

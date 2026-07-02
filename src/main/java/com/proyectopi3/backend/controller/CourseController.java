@@ -1,9 +1,9 @@
 package com.proyectopi3.backend.controller;
 
-import com.proyectopi3.backend.dto.DisciplineRequest;
+import com.proyectopi3.backend.dto.CourseRequest;
 import com.proyectopi3.backend.dto.MessageResponse;
-import com.proyectopi3.backend.model.Discipline;
-import com.proyectopi3.backend.service.DisciplineService;
+import com.proyectopi3.backend.model.Course;
+import com.proyectopi3.backend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,37 +16,37 @@ import java.util.List;
 
 @CrossOrigin(origins = "*", maxAge = 3600)
 @RestController
-@RequestMapping("/api/disciplines")
-@Tag(name = "Sport Disciplines", description = "Endpoints for managing sports categories and disciplines")
-public class DisciplineController {
+@RequestMapping("/api/courses")
+@Tag(name = "Sport Courses", description = "Endpoints for managing sports categories and courses")
+public class CourseController {
 
     @Autowired
-    private DisciplineService service;
+    private CourseService service;
 
     @GetMapping
-    @Operation(summary = "Get all disciplines", description = "Retrieve all registered sport disciplines.")
-    public ResponseEntity<List<Discipline>> getAll() {
+    @Operation(summary = "Get all courses", description = "Retrieve all registered sport courses.")
+    public ResponseEntity<List<Course>> getAll() {
         return ResponseEntity.ok(service.getAll());
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get discipline by ID", description = "Retrieve information about a specific discipline.")
     public ResponseEntity<?> getById(@PathVariable Long id) {
-        java.util.Optional<Discipline> disciplineOpt = service.getById(id);
+        java.util.Optional<Course> disciplineOpt = service.getById(id);
         if (disciplineOpt.isPresent()) {
             return ResponseEntity.ok(disciplineOpt.get());
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new MessageResponse("Error: Discipline not found with ID " + id));
+                    .body(new MessageResponse("Error: Course not found with ID " + id));
         }
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Create a new discipline", description = "Register a new sport discipline. Restricted to ADMIN and ORGANIZER.")
-    public ResponseEntity<?> create(@Valid @RequestBody DisciplineRequest request) {
+    public ResponseEntity<?> create(@Valid @RequestBody CourseRequest request) {
         try {
-            Discipline discipline = service.create(request);
+            Course discipline = service.create(request);
             return ResponseEntity.status(HttpStatus.CREATED).body(discipline);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
@@ -56,14 +56,14 @@ public class DisciplineController {
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('ORGANIZER')")
     @Operation(summary = "Update an existing discipline", description = "Update information about a discipline. Restricted to ADMIN and ORGANIZER.")
-    public ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody DisciplineRequest request) {
+    public ResponseEntity<?> update(@PathVariable Long id, @Valid @RequestBody CourseRequest request) {
         try {
-            java.util.Optional<Discipline> updatedOpt = service.update(id, request);
+            java.util.Optional<Course> updatedOpt = service.update(id, request);
             if (updatedOpt.isPresent()) {
                 return ResponseEntity.ok(updatedOpt.get());
             } else {
                 return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                        .body(new MessageResponse("Error: Discipline not found with ID " + id));
+                        .body(new MessageResponse("Error: Course not found with ID " + id));
             }
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(new MessageResponse(e.getMessage()));
@@ -76,10 +76,10 @@ public class DisciplineController {
     public ResponseEntity<?> delete(@PathVariable Long id) {
         boolean deleted = service.delete(id);
         if (deleted) {
-            return ResponseEntity.ok(new MessageResponse("Discipline deleted successfully!"));
+            return ResponseEntity.ok(new MessageResponse("Course deleted successfully!"));
         } else {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new MessageResponse("Error: Discipline not found with ID " + id));
+                    .body(new MessageResponse("Error: Course not found with ID " + id));
         }
     }
 }

@@ -1,8 +1,8 @@
 package com.proyectopi3.backend.service;
 
-import com.proyectopi3.backend.dto.TeamRequest;
-import com.proyectopi3.backend.model.Team;
-import com.proyectopi3.backend.repository.TeamRepository;
+import com.proyectopi3.backend.dto.StudyGroupRequest;
+import com.proyectopi3.backend.model.StudyGroup;
+import com.proyectopi3.backend.repository.StudyGroupRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,28 +10,28 @@ import java.util.List;
 import java.util.Optional;
 
 @Service
-public class TeamService {
+public class StudyGroupService {
     @Autowired
-    private TeamRepository repository;
+    private StudyGroupRepository repository;
 
     @Transactional(readOnly = true)
-    public List<Team> getAll() {
+    public List<StudyGroup> getAll() {
         return repository.findAll();
     }
 
     @Transactional(readOnly = true)
-    public Optional<Team> getById(Long id) {
+    public Optional<StudyGroup> getById(Long id) {
         return repository.findById(id);
     }
 
     @Transactional
-    public Team create(TeamRequest request) {
-        if (repository.existsByNameIgnoreCaseAndUniversityIgnoreCase(request.getName(), request.getUniversity())) {
-            throw new IllegalArgumentException("Team '" + request.getName() + "' at university '" + request.getUniversity() + "' already exists");
+    public StudyGroup create(StudyGroupRequest request) {
+        if (repository.existsByNameIgnoreCaseAndCourseNameIgnoreCase(request.getName(), request.getCourseName())) {
+            throw new IllegalArgumentException("StudyGroup '" + request.getName() + "' for course '" + request.getCourseName() + "' already exists");
         }
-        Team team = Team.builder()
+        StudyGroup team = StudyGroup.builder()
                 .name(request.getName())
-                .university(request.getUniversity())
+                .courseName(request.getCourseName())
                 .type(request.getType() != null ? request.getType() : "normal")
                 .subaula(request.getSubaula())
                 .build();
@@ -39,16 +39,16 @@ public class TeamService {
     }
 
     @Transactional
-    public Optional<Team> update(Long id, TeamRequest request) {
+    public Optional<StudyGroup> update(Long id, StudyGroupRequest request) {
         return repository.findById(id).map(existing -> {
             boolean matchesExisting = existing.getName().equalsIgnoreCase(request.getName()) &&
-                    existing.getUniversity().equalsIgnoreCase(request.getUniversity());
+                    existing.getCourseName().equalsIgnoreCase(request.getCourseName());
             if (!matchesExisting &&
-                    repository.existsByNameIgnoreCaseAndUniversityIgnoreCase(request.getName(), request.getUniversity())) {
-                throw new IllegalArgumentException("Team '" + request.getName() + "' at university '" + request.getUniversity() + "' already exists");
+                    repository.existsByNameIgnoreCaseAndCourseNameIgnoreCase(request.getName(), request.getCourseName())) {
+                throw new IllegalArgumentException("StudyGroup '" + request.getName() + "' for course '" + request.getCourseName() + "' already exists");
             }
             existing.setName(request.getName());
-            existing.setUniversity(request.getUniversity());
+            existing.setCourseName(request.getCourseName());
             if (request.getType() != null) {
                 existing.setType(request.getType());
             }

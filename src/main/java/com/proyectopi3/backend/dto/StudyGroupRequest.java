@@ -5,10 +5,15 @@ import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
-public class DisciplineRequest {
+public class StudyGroupRequest {
     @NotBlank
     @Size(min = 2, max = 100)
     private String name;
 
-    private String description;
+    @NotBlank
+    @Size(min = 2, max = 100)
+    private String courseName;
+
+    private String type;
+    private String subaula;
 }

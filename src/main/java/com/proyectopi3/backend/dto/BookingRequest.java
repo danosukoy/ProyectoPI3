@@ -7,7 +7,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
-public class MatchRequest {
+public class BookingRequest {
     @NotBlank
     @Size(min = 3, max = 100)
     private String title;
@@ -15,19 +15,19 @@ public class MatchRequest {
     private String description;
 
     @NotNull
-    private LocalDateTime matchDateTime;
+    private LocalDateTime bookingDateTime;
 
     @NotNull
     private Long locationId;
 
     @NotNull
-    private Long disciplineId;
+    private Long courseId;
 
     @NotNull
-    private Long homeTeamId;
+    private Long homeGroupId;
 
     @NotNull
-    private Long awayTeamId;
+    private Long awayGroupId;
 
     private Integer homeScore;
     private Integer awayScore;
@@ -38,5 +38,5 @@ public class MatchRequest {
 
     private String organizerUsername;
 
-    private String status; // Expected to match MatchStatus enum values
+    private String status; // Expected to match BookingStatus enum values
 }
