@@ -14,11 +14,9 @@ import {
   Plus, 
   MessageSquare, 
   Bell, 
-  Lightbulb, 
   CodeXml, 
   BookMarked, 
   SquareFunction, 
-  Palette,
   LogOut,
   Check,
   Calendar,
@@ -27,13 +25,16 @@ import {
   Clock,
   DoorClosed,
   ChevronRight,
-  BookOpenCheck,
   MessageCircle,
   GraduationCap,
   TrendingUp,
   Loader2,
   Star,
-  Lock
+  Lock,
+  Cpu,
+  Zap,
+  Boxes,
+  Flame
 } from 'lucide-react';
 
 interface UserData {
@@ -170,7 +171,14 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
     { id: '4', name: 'Grupo de Programación Web', courseName: 'Programming Fundamentals', members: 8, description: 'Aprendemos juntos desarrollo web desde cero. ¡Todos los niveles!', type: 'normal' },
     { id: '5', name: 'Aula 2 - Prog. Web (Exclusivo)', courseName: 'Programming Fundamentals', members: 5, description: 'Grupo exclusivo para resolver proyectos prácticos de la sección Aula 102.', type: 'subaula', subaula: 'Aula 2' },
     { id: '6', name: 'Grupo de Física General', courseName: 'Física General', members: 6, description: 'Resolución de ejercicios y preparación de prácticas de laboratorio.', type: 'normal' },
-    { id: '7', name: 'Aula 1 - Física General (Exclusivo)', courseName: 'Física General', members: 3, description: 'Grupo de estudio exclusivo para alumnos del Aula 101 de Física General.', type: 'subaula', subaula: 'Aula 1' }
+    { id: '7', name: 'Aula 1 - Física General (Exclusivo)', courseName: 'Física General', members: 3, description: 'Grupo de estudio exclusivo para alumnos del Aula 101 de Física General.', type: 'subaula', subaula: 'Aula 1' },
+    { id: '8', name: 'Grupo de Circuitos Eléctricos I', courseName: 'Circuitos electricos y electronico I', members: 5, description: 'Apoyo mutuo en análisis de nodos, mallas y amplificadores operacionales.', type: 'normal' },
+    { id: '9', name: 'Aula 1 - Circuitos (Exclusivo)', courseName: 'Circuitos electricos y electronico I', members: 3, description: 'Grupo exclusivo para el Aula 101 de Circuitos Eléctricos y Electrónicos.', type: 'subaula', subaula: 'Aula 1' },
+    { id: '10', name: 'Grupo de Dinámica', courseName: 'Dinamica de cuerpos rigidos', members: 4, description: 'Estudio de cinemática y cinética tridimensional de cuerpos rígidos.', type: 'normal' },
+    { id: '11', name: 'Grupo de Fundamentos de Electricidad', courseName: 'Fundamentos de la electricidad', members: 6, description: 'Repaso de electromagnetismo, ley de Gauss y potencial eléctrico.', type: 'normal' },
+    { id: '12', name: 'Grupo de Termodinámica', courseName: 'Termodinamica', members: 5, description: 'Discusión de ciclos de potencia, entropía y la primera/segunda ley.', type: 'normal' },
+    { id: '13', name: 'Grupo de Cálculo Vectorial', courseName: 'Calcula vectorial', members: 7, description: 'Resolución de integrales de línea, superficie y teoremas vectoriales.', type: 'normal' },
+    { id: '14', name: 'Aula 2 - Cálculo Vectorial (Exclusivo)', courseName: 'Calcula vectorial', members: 4, description: 'Grupo exclusivo para el Aula 102 de Cálculo Vectorial.', type: 'subaula', subaula: 'Aula 2' }
   ]);
   const myGroups = availableGroups.filter(g => joinedGroups.includes(g.name));
 
@@ -605,20 +613,20 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
   const getMemberGroups = (username: string): string[] => {
     const normalized = username.toLowerCase().trim();
     if (normalized.includes('diego')) {
-      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Grupo de Programación Web', 'Grupo de Diseño Curricular'];
+      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Grupo de Programación Web', 'Grupo de Circuitos Eléctricos I'];
     } else if (normalized.includes('mateo')) {
-      return ['Grupo de Matemáticas Aplicadas', 'Grupo de Programación Web', 'Aula 2 - Prog. Web (Exclusivo)', 'Grupo de Educación y Sociedad'];
+      return ['Grupo de Cálculo Vectorial', 'Grupo de Programación Web', 'Aula 2 - Prog. Web (Exclusivo)', 'Grupo de Termodinámica'];
     } else if (normalized.includes('lucía') || normalized.includes('lucia')) {
-      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Grupo de Matemáticas Aplicadas', 'Aula 1 - Física General (Exclusivo)'];
+      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Grupo de Dinámica', 'Aula 1 - Física General (Exclusivo)'];
     }
     
     // Fallback based on career for other dynamically loaded users
     const member = communityUsers.find(u => u.username === username);
     const career = member?.career || '';
     if (career.includes('Computación') || career.includes('Sistemas')) {
-      return ['Grupo de Programación Web', 'Aula 2 - Prog. Web (Exclusivo)', 'Grupo de Diseño Curricular'];
+      return ['Grupo de Programación Web', 'Aula 2 - Prog. Web (Exclusivo)', 'Grupo de Cálculo Vectorial'];
     } else if (career.includes('Civil') || career.includes('Ambiental') || career.includes('Energía')) {
-      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Aula 1 - Física General (Exclusivo)', 'Grupo de Matemáticas Aplicadas'];
+      return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)', 'Aula 1 - Física General (Exclusivo)', 'Grupo de Dinámica'];
     }
     
     return ['Grupo de Repaso Cálculo 1', 'Aula 1 - Cálculo 1 (Exclusivo)'];
@@ -886,10 +894,11 @@ export default function Dashboard({ user, onLogout }: DashboardProps) {
 
   // Cursos Filtro data from Step 3
   const filterCourses = [
-    { name: 'Educación y Sociedad', area: 'Área Pedagógica', color: '#15803d', icon: Users, bg: 'rgba(21, 128, 61, 0.15)' },
-    { name: 'Psicología del Aprendizaje', area: 'Área de Psicología', color: '#15803d', icon: Lightbulb, bg: 'rgba(21, 128, 61, 0.15)' },
-    { name: 'Teorías Educativas', area: 'Área Pedagógica', color: '#15803d', icon: BookOpenCheck, bg: 'rgba(21, 128, 61, 0.15)' },
-    { name: 'Diseño Curricular', area: 'Área Curricular', color: '#15803d', icon: Palette, bg: 'rgba(21, 128, 61, 0.15)' }
+    { name: 'Circuitos electricos y electronico I', area: 'Área de Electricidad', color: '#ef4444', icon: Cpu, bg: 'rgba(239, 68, 68, 0.15)' },
+    { name: 'Dinamica de cuerpos rigidos', area: 'Área de Física', color: '#a21caf', icon: Boxes, bg: 'rgba(162, 28, 175, 0.15)' },
+    { name: 'Fundamentos de la electricidad', area: 'Área de Electricidad', color: '#eab308', icon: Zap, bg: 'rgba(234, 179, 8, 0.15)' },
+    { name: 'Termodinamica', area: 'Área de Ciencias', color: '#f97316', icon: Flame, bg: 'rgba(249, 115, 22, 0.15)' },
+    { name: 'Calcula vectorial', area: 'Área de Matemáticas', color: '#06b6d4', icon: SquareFunction, bg: 'rgba(6, 182, 212, 0.15)' }
   ];
 
   // Dynamic filter based on search input
